@@ -1,2 +1,4 @@
 # calcli
-A ligthweight CLI scientific calculator with basic vi bindings
+A ligthweight CLI/TUI notepad scientific calculator with basic vi bindings
+
+
