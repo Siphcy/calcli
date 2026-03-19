@@ -1,1 +1,1 @@
-/home/nureta/Project/calcli/target/debug/calcli: /home/nureta/Project/calcli/src/main.rs /home/nureta/Project/calcli/src/sql_init.rs
+/home/nureta/Project/calcli/target/debug/calcli: /home/nureta/Project/calcli/src/eval.rs /home/nureta/Project/calcli/src/input_handler.rs /home/nureta/Project/calcli/src/main.rs

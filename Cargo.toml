@@ -1,8 +1,10 @@
 [package]
 name = "calcli"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 
 [dependencies]
 ratatui = "0.30.0"
 meval = "0.2"
+color-eyre = "0.6"
+clap = { version = "4.6.0", features = ["derive"] }
