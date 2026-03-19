@@ -1,5 +1,6 @@
 mod input_handler;
 mod eval;
+mod unit_conversion;
 
 
 use eval::evaluate_input;
@@ -10,7 +11,10 @@ use color_eyre::Result;
 use std::io::{self, Write};
 
 
-//TODO: Add unit conversion and shit
+
+//TODO: Add unit conversion and functions
+
+
 
 /// CLI/TUI Program for quick calculations on your terminal
 #[derive(Parser)]
