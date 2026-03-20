@@ -1,10 +1,11 @@
 mod input_handler;
 mod eval;
 mod unit_conversion;
+mod eval_context;
 
-
+use eval_context::EvalContext;
 use eval::evaluate_input;
-use meval::{eval_str, Context};
+use meval::eval_str;
 use input_handler::InputHandler;
 use clap::Parser;
 use color_eyre::Result;
@@ -39,7 +40,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // TUI mode: calcli -t
+    // TUI
     if args.tui {
         let mut terminal = ratatui::init();
         let app = InputHandler::new();
@@ -48,11 +49,9 @@ fn main() -> Result<()> {
         return result;
     }
 
-    // Default: CLI REPL mode
+    // CLI (default)
     println!("Calculator CLI - Enter expressions to evaluate (type 'quit' to exit)");
-    let mut parse_result: Vec<f64> = Vec::new();
-    let mut counter: usize = 1;
-    let mut ctx = Context::new();
+    let mut eval_ctx = EvalContext::new();
 
     loop {
         print!("> ");
@@ -60,15 +59,16 @@ fn main() -> Result<()> {
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
+        //TODO: using unwrap like this can be dangerous but idk maybe i'l cehck later
         let input = input.trim();
 
-        if input == "quit" {
+        if (input == "quit") || (input == "q") {
             break Ok(());
         }
 
-        if let Some(result) = evaluate_input(counter, input, &mut parse_result, &mut ctx) {
-            println!("{}) = {}", counter, result);
-            counter += 1;
+        if let Some(result) = evaluate_input(&mut eval_ctx, &input) {
+            println!("{}) = {}", eval_ctx.counter, result);
+            eval_ctx.counter += 1;
         }
     }
 }

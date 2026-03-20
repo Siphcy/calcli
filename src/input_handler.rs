@@ -1,5 +1,6 @@
 use color_eyre::Result;
-use meval::{eval_str, Expr, Context};
+use crate::eval::evaluate_input;
+use crate::eval_context::EvalContext;
 use ratatui::crossterm::event::{self, KeyCode, KeyEventKind};
 use ratatui::layout::{Constraint, Layout, Position};
 use ratatui::style::{Color, Modifier, Style, Stylize};
@@ -10,22 +11,13 @@ use ratatui::{DefaultTerminal, Frame};
 //TODO: Window cannot scroll and lines go past and become out of view. and a consistent gap
 //between the bottom of the window and some nth line (s.t. nth = height/2.5?? with floor value)
 
-/// InputHandler holds the state of the application
 pub struct InputHandler<'a> {
-    /// Current value of the input box
     input: String,
-    /// Position of cursor in the editor area.
     character_index: usize,
-    /// Current input mode
     input_mode: InputMode,
-    /// History of recorded messages (input -> result)
     messages: Vec<String>,
-    /// Store previous calculation results
-    results: Vec<f64>,
-    /// Context for variables
-    ctx: Context<'a>,
-    /// Counter for line numbers
-    counter: usize,
+    eval_ctx: EvalContext<'a>,
+
 }
 
 pub enum InputMode {
@@ -39,10 +31,8 @@ impl<'a> InputHandler<'a> {
             input: String::new(),
             input_mode: InputMode::Normal,
             messages: Vec::new(),
-            results: Vec::new(),
-            ctx: Context::new(),
+            eval_ctx: EvalContext::new(),
             character_index: 0,
-            counter: 1,
         }
     }
 
@@ -93,67 +83,27 @@ impl<'a> InputHandler<'a> {
     }
 
     fn submit_message(&mut self) {
-        let input = self.input.trim().to_string();
-
-        if input.is_empty() {
+        if self.input.is_empty() {
             self.input.clear();
             self.reset_cursor();
             return;
         }
+        if let Some(result) = evaluate_input(&mut self.eval_ctx, &self.input.to_string()) {
+            self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, self.input.trim().to_string(), result));
+            self.eval_ctx.counter += 1;
 
-        // Handle "let x = 5" statements
-        if input.starts_with("let ") {
-            if let Some((name, value)) = self.parse_let_statement(&input) {
-                self.ctx.var(&name, value);
-                self.messages.push(format!("{} = {}", name, value));
-            } else {
-                self.messages.push("Invalid let syntax. Use: let x = 5".to_string());
-            }
             self.input.clear();
             self.reset_cursor();
-            return;
         }
-
-        // Register previous results as ln1, ln2, etc.
-        for n in 1..self.counter {
-            let pattern = format!("ln{}", n);
-            if input.contains(&pattern) {
-                if let Some(value) = self.results.get(n - 1) {
-                    self.ctx.var(&pattern, *value);
-                }
-            }
-        }
-
-        // Evaluate the expression
-        match input.parse::<Expr>().and_then(|e| e.eval_with_context(&self.ctx)) {
-            Ok(result) => {
-                self.results.push(result);
-                self.messages.push(format!("{}) {} = {}", self.counter, input, result));
-                self.counter += 1;
-            }
-            Err(e) => {
-                self.messages.push(format!("Error: {}", e));
-            }
-        }
-
         self.input.clear();
         self.reset_cursor();
+
+
+
+
     }
 
-    fn parse_let_statement(&self, input: &str) -> Option<(String, f64)> {
-        let rest = input.strip_prefix("let ")?;
-        let parts: Vec<&str> = rest.splitn(2, '=').collect();
 
-        if parts.len() != 2 {
-            return None;
-        }
-
-        let var_name = parts[0].trim().to_string();
-        let value_str = parts[1].trim();
-        let value = eval_str(value_str).ok()?;
-
-        Some((var_name, value))
-    }
 
     pub fn run(mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         loop {
