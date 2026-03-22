@@ -4,9 +4,10 @@
 <div align="center">
 
 ![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)
-![TUI](https://img.shields.io/badge/TUI-Terminal-blue?style=for-the-badge)
-![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Version](https://img.shields.io/badge/version-0.1.2-orange?style=for-the-badge)
+![License](https://img.shields.io/github/license/Siphcy/calcli?style=for-the-badge)
+![Release](https://img.shields.io/github/v/release/Siphcy/calcli?style=for-the-badge)
+![Build](https://img.shields.io/github/actions/workflow/status/Siphcy/calcli/release.yml?style=for-the-badge)
+![Downloads](https://img.shields.io/github/downloads/Siphcy/calcli/total?style=for-the-badge)
 
 A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust.
 
@@ -28,13 +29,77 @@ A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust
 
 ## Installation
 
-```bash
-# Install Rust (if not already installed)
+### Quick Install (Recommended)
+
+HEAD
 
 # Clone and run
+
+#### Linux/macOS
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Siphcy/calcli/main/install.sh | sh
+```
+
+#### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/Siphcy/calcli/main/install.ps1 | iex
+```
+
+### Package Managers
+
+#### Arch Linux (AUR)
+
+```bash
+yay -S calcli
+# or
+paru -S calcli
+```
+
+#### Nix/NixOS
+
+```bash
+# Run directly without installing
+nix run github:Siphcy/calcli
+
+# Install to profile
+nix profile install github:Siphcy/calcli
+
+# Or add to your configuration.nix
+environment.systemPackages = [ pkgs.calcli ];
+```
+
+#### Cargo (requires Rust)
+
+```bash
+cargo install calcli
+```
+
+### Pre-built Binaries
+
+Download the latest binary for your platform from [Releases](https://github.com/Siphcy/calcli/releases):
+
+| Platform                  | Binary                      |
+| ------------------------- | --------------------------- |
+| **Linux (x86_64)**        | `calcli-linux-x86_64`       |
+| **Linux (musl)**          | `calcli-linux-x86_64-musl`  |
+| **Windows**               | `calcli-windows-x86_64.exe` |
+| **macOS (Intel)**         | `calcli-macos-x86_64`       |
+| **macOS (Apple Silicon)** | `calcli-macos-aarch64`      |
+
+### From Source
+
+```bash
+# Install Rust if needed
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Clone and build
+cc861b6 (Added supprot to package managers and github work flow)
 git clone https://github.com/Siphcy/calcli.git
 cd calcli
-cargo run --release
+cargo build --release
+./target/release/calcli
 ```
 
 ## Features
