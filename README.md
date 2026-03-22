@@ -4,10 +4,9 @@
 <div align="center">
 
 ![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)
-![License](https://img.shields.io/github/license/Siphcy/calcli?style=for-the-badge)
-![Release](https://img.shields.io/github/v/release/Siphcy/calcli?style=for-the-badge)
-![Build](https://img.shields.io/github/actions/workflow/status/Siphcy/calcli/release.yml?style=for-the-badge)
-![Downloads](https://img.shields.io/github/downloads/Siphcy/calcli/total?style=for-the-badge)
+![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-0.1.2-blue?style=for-the-badge)
+![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey?style=for-the-badge)
 
 A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust.
 
