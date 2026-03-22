@@ -64,9 +64,30 @@ nix run github:Siphcy/calcli
 
 # Install to profile
 nix profile install github:Siphcy/calcli
+```
 
-# Or add to your configuration.nix
-environment.systemPackages = [ pkgs.calcli ];
+Or add to your flake-based configuration:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    calcli.url = "github:Siphcy/calcli";
+  };
+
+  outputs = { self, nixpkgs, calcli, ... }: {
+    nixosConfigurations.yourhostname = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        {
+          environment.systemPackages = [
+            calcli.packages.x86_64-linux.default
+          ];
+        }
+      ];
+    };
+  };
+}
 ```
 
 #### Cargo (requires Rust)

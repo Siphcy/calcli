@@ -11,21 +11,16 @@ makedepends=('cargo')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
 sha256sums=('SKIP')  # Run: sha256sum v0.1.2.tar.gz and update this
 
-prepare() {
-    cd "$pkgname-$pkgver"
-    cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-}
-
 build() {
     cd "$pkgname-$pkgver"
     export RUSTUP_TOOLCHAIN=stable
     export CARGO_TARGET_DIR=target
-    cargo build --frozen --release --all-features
+    cargo build --release
 }
 
 check() {
     cd "$pkgname-$pkgver"
-    cargo test --frozen --all-features
+    cargo test --release
 }
 
 package() {
