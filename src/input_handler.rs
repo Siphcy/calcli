@@ -301,12 +301,10 @@ impl<'a> InputHandler<'a> {
             }
         }
 
-        // Auto-scroll to bottom of messages
         if !self.messages.is_empty() {
             self.messages_state.select(Some(self.messages.len().saturating_sub(1)));
         }
 
-        // Auto-scroll to bottom of variables
         let var_count = self.eval_ctx.defined_vars.iter()
             .filter(|(name, _)| !name.starts_with("lin"))
             .count();
@@ -469,6 +467,8 @@ impl<'a> InputHandler<'a> {
                     "/".into(),
                     "K".bold(),
                     " scroll results, ".into(),
+                    "y".bold(),
+                    " copy selected line, ".into(),
                     "gg".bold(),
                     "/".into(),
                     "gg".bold(),
