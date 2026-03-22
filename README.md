@@ -56,7 +56,12 @@ yay -S calcli
 # or
 paru -S calcli
 ```
-
+or from source
+```bash
+git clone https://github.com/Siphcy/calcli.git
+cd calcli
+makepkg -si
+```
 #### Nix/NixOS
 
 ```bash
