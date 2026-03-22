@@ -30,7 +30,7 @@ A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust
 
 ### Quick Install (Recommended)
 
-HEAD
+
 
 # Clone and run
 
@@ -48,7 +48,7 @@ irm https://raw.githubusercontent.com/Siphcy/calcli/main/install.ps1 | iex
 
 ### Package Managers
 
-#### Arch Linux (AUR)
+#### Arch Linux (AUR) [Not added yet]
 
 ```bash
 yay -S calcli
