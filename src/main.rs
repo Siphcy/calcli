@@ -2,6 +2,7 @@ mod input_handler;
 mod eval;
 mod unit_conversion;
 mod eval_context;
+mod vi_inputs;
 
 use eval_context::EvalContext;
 use eval::evaluate_input;
@@ -50,7 +51,7 @@ fn main() -> Result<()> {
     }
 
     // CLI (default)
-    println!("Calculator CLI - Enter expressions to evaluate (type 'quit' to exit)");
+    println!("Calculator CLI - Enter expressions to evaluate (type 'quit' or 'q' to exit)");
     let mut eval_ctx = EvalContext::new();
 
     loop {
@@ -66,9 +67,14 @@ fn main() -> Result<()> {
             break Ok(());
         }
 
-        if let Some(result) = evaluate_input(&mut eval_ctx, &input) {
-            println!("{}) = {}", eval_ctx.counter, result);
-            eval_ctx.counter += 1;
+        match evaluate_input(&mut eval_ctx, &input) {
+            Ok(result) => {
+                println!("{}) = {}", eval_ctx.counter, result);
+                eval_ctx.counter += 1;
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+            }
         }
     }
 }
