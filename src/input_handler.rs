@@ -427,7 +427,13 @@ impl<'a> InputHandler<'a> {
                         KeyCode::Backspace => self.delete_char(),
                         KeyCode::Left => self.move_cursor_left(),
                         KeyCode::Right => self.move_cursor_right(),
-
+                        //TODO: put into helper area
+                        KeyCode::Up => {
+                            self.get_previous_history();
+                        }
+                        KeyCode::Down => {
+                            self.get_next_history();
+                        }
                         KeyCode::Esc => self.input_mode = InputMode::Normal,
                         _ => {}
                     },
