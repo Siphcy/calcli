@@ -3,14 +3,16 @@
 </h1>
 <div align="center">
 
-![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Version](https://img.shields.io/badge/version-0.1.2-blue?style=for-the-badge)
-![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey?style=for-the-badge)
+![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=flat&logo=rust&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat)
+![Version](https://img.shields.io/badge/version-0.1.2-blue?style=flat)
+![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey?style=flat)
 
 A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust.
 
 **Fast • Powerful • Terminal-Native**
+
+<img src="https://github.com/Siphcy/calcli/tree/main/assets/example.png">
 
 </div>
 
