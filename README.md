@@ -32,7 +32,7 @@ A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust
 # Install Rust (if not already installed)
 
 # Clone and run
-git clone https://github.com/yourusername/calcli.git
+git clone https://github.com/Siphcy/calcli.git
 cd calcli
 cargo run --release
 ```
