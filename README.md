@@ -13,18 +13,19 @@ A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust
 **Fast • Powerful • Terminal-Native**
 
 <img src="https://raw.githubusercontent.com/Siphcy/calcli/main/assets/example.png">
+</div>
 
 ---
 
 ## Table of Contents
 
 - [Installation](#installation)
-- [Supported Functions & Operators](#supported-functions-&-operators)
+- [Supported Functions/Operators](##supported-functions/operators)
 - [Usage](#usage)
-- [Keybindings](#keybindings)
-- [Dependencies](#Dependencies)
-- [Project Structure](#Project-Structure)
-- [Contributing](##contributing)
+- [Keybindings](##keybindings)
+- [Dependencies](###dependencies)
+- [Project Structure](###Project-Structure)
+- [Contributing](#contributing)
 
 ## Installation
 
@@ -130,7 +131,7 @@ cargo build --release
 - **Vi-Style Keybindings** - Modal editing (Normal/Editing), `hjkl` navigation, `gg`/`GG`, word movements (`e`, `b`)
 - **Rich TUI Interface** - Three-panel layout, scrollable history, live variable tracking, expression recall with `y`/`Enter`
 
-## Supported Functions & Operators
+## Supported Functions/Operators
 
 ### Mathematical Functions
 
