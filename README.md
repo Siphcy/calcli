@@ -12,9 +12,7 @@ A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust
 
 **Fast • Powerful • Terminal-Native**
 
-<img src="https://github.com/Siphcy/calcli/tree/main/assets/example.png">
-
-</div>
+<img src="https://raw.githubusercontent.com/Siphcy/calcli/main/assets/example.png">
 
 ---
 
