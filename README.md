@@ -17,16 +17,13 @@ A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust
 
 ## Table of Contents
 
-- [Preview](#-preview)
-- [Features](#-features)
 - [Installation](#installation)
-- [Supported Functions & Operators](#supported-functions--operators)
+- [Supported Functions & Operators](#supported-functions-&-operators)
 - [Usage](#usage)
 - [Keybindings](#keybindings)
-- [Examples](#examples)
-- [Technical Details](#-technical-details)
-- [Development](#-development)
-- [Contributing](#-contributing)
+- [Dependencies](#Dependencies)
+- [Project Structure](#Project-Structure)
+- [Contributing](##contributing)
 
 ## Installation
 
@@ -180,34 +177,6 @@ lin1 * 2        # Use previous result
 | `Esc`       | Return to normal mode |
 | `←` / `→`   | Move cursor           |
 | `Backspace` | Delete character      |
-
-## Examples
-
-```rust
-// Variables and iteration
-let x = 10
-let y = 20
-let x2 = 30      // Variable named x2
-x2               // 30 (not x*2)
-
-// Implicit multiplication
-2x               // 20 (2 * x)
-3y               // 60 (3 * y)
-
-// Functions
-sin(0)           // 0
-cos(0)           // 1
-ln(e)            // 1
-
-// Line references
-5 + 5            // lin1 = 10
-lin1 * 2         // lin2 = 20
-lin1 + lin2      // 30
-
-// Complex expressions
-2(3+4)           // 14
-[x]2             // Explicit: x * 2 = 20
-```
 
 ### Dependencies
 
