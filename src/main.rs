@@ -3,6 +3,7 @@ mod eval;
 mod unit_conversion;
 mod eval_context;
 mod vi_inputs;
+mod variable;
 
 use eval_context::EvalContext;
 use eval::evaluate_input;
@@ -15,6 +16,7 @@ use std::io::{self, Write};
 
 
 //TODO: Add unit conversion and functions
+//Add bracket highlighting and implicit brackets at ends
 
 
 
@@ -60,7 +62,6 @@ fn main() -> Result<()> {
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
-        //TODO: using unwrap like this can be dangerous but idk maybe i'l cehck later
         let input = input.trim();
 
         if (input == "quit") || (input == "q") {
