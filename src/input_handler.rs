@@ -535,7 +535,7 @@ impl<'a> InputHandler<'a> {
             [Constraint::Percentage(50), Constraint::Percentage(50)]
         )
         .block(Block::bordered().title("Variables"))
-        .highlight_style(Style::default().bg(Color::DarkGray))
+        .highlight_style(Style::default().bg(Color::Gray))
         .highlight_symbol(">> ");
 
         frame.render_stateful_widget(var_table, var_list, &mut self.variables_state);
