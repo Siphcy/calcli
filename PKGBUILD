@@ -1,4 +1,4 @@
-# Maintainer: Nureta <your.email@example.com>
+# Maintainer: Siphcy archlinux.gloating053@passmail.net
 pkgname=calcli
 pkgver=0.1.2
 pkgrel=1
@@ -9,7 +9,7 @@ license=('MIT')
 depends=()
 makedepends=('cargo')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
-sha256sums=('SKIP')  # Run: sha256sum v0.1.2.tar.gz and update this
+sha256sums=('fc0e846441c2007fcd4a5ebf72037d5033f33b5fc5a33e88e91baacfec91540f')  # Run: sha256sum v#.tar.gz and update this
 
 build() {
     cd "$pkgname-$pkgver"
