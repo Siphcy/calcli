@@ -25,7 +25,6 @@ impl Function {
 
         // Format variables but exclude the function parameter (keep it in brackets)
         let new_expr = format_variables_with_exclusion(self.expr.clone(), ctx, Some(&self.var_name));
-        println!("{new_expr}");
 
         // Create a regex to match the specific variable in brackets (e.g., [x])
         let pattern = format!(r"\[{}\]", self.var_name);

@@ -63,14 +63,19 @@ pub fn evaluate_input(
     }
 
     if input.starts_with("let ") {
-        // Check if it's a function definition (contains parentheses)
-        if input.contains('(') && input.contains(')') {
+        // Check if it's a function definition by checking if the left-hand side contains parentheses
+        // This distinguishes "let f(x) = ..." from "let n = (5)(67)"
+        let rest = input.strip_prefix("let ").unwrap();
+        let lhs = rest.split('=').next().unwrap_or("").trim();
+
+        if lhs.contains('(') && lhs.contains(')') {
+            // Function definition: let f(x) = ...
             let func = parse_function_definition(eval_ctx, &input)?;
             let func_name = func.func_name.clone();
             eval_ctx.defined_funcs.insert(func_name, func);
             return Ok(0.0); // Return 0 for function definitions
         } else {
-            // Variable definition
+            // Variable definition: let x = ...
             let (name, value) = parse_let_statement(eval_ctx, &input)?;
             eval_ctx.ctx.var(&name, value);
             eval_ctx.defined_vars.insert(name, value);

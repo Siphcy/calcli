@@ -338,18 +338,20 @@ impl<'a> InputHandler<'a> {
         match evaluate_input(&mut self.eval_ctx, &self.input.to_string()) {
 
             Ok(result) => {
-                if self.input.starts_with("let ") && (self.input.contains("(") && self.input.contains(")")) {
-                    if let Some((func_name, func)) = self.eval_ctx.defined_funcs.last() {
-                    self.messages.push(format!("{}) {}({}) = {}", self.eval_ctx.counter, func_name, func.var_name, func.expr));
-                    }
+                if self.input.starts_with("let ") {
+                    let rest = self.input.strip_prefix("let ").unwrap();
+                    let lhs = rest.split('=').next().unwrap_or("").trim();
 
-                } else if self.input.starts_with("let ") {
-                if let Some((var, value)) = self.eval_ctx.defined_vars.last() {
-                    self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, var, value));
+                    if lhs.contains("(") && lhs.contains(")") {
+                        if let Some((func_name, func)) = self.eval_ctx.defined_funcs.last() {
+                            self.messages.push(format!("{}) {}({}) = {}", self.eval_ctx.counter, func_name, func.var_name, func.expr));
+                        }
+                    } else {
+                        if let Some((var, value)) = self.eval_ctx.defined_vars.last() {
+                            self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, var, value));
+                        }
                     }
-
                 }
-
                 else {
                 self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, self.input.trim(), result));
                 }

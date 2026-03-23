@@ -21,8 +21,9 @@ pub fn format_variables_with_exclusion(
     exclude_var: Option<&str>
 ) -> String {
     let line_regex = Regex::new(r"(\[[^\]]*\])|lin(\d+)(?!\d)").unwrap();
+    // Match sequences of letters (with optional trailing digits) to check for functions first
+    let word_regex = Regex::new(r"(\[[^\]]*\])|(?<![a-zA-Z])([a-z]+)(\d*)").unwrap();
 
-    // Format lin# references first
     input = line_regex.replace_all(&input, |caps: &fancy_regex::Captures| {
         if caps.get(1).is_some() {
             caps.get(0).unwrap().as_str().to_string()
@@ -32,55 +33,57 @@ pub fn format_variables_with_exclusion(
     }).to_string();
 
     let defined_vars = &eval_ctx.defined_vars;
-
-    // Match: anything in brackets, OR single letter + optional digits (not part of a word)
-    let var_regex = Regex::new(r"(\[[^\]]*\])|(?<![a-zA-Z])([a-z]\d*)(?![a-zA-Z])").unwrap();
-
-    input = var_regex.replace_all(&input, |caps: &fancy_regex::Captures| {
+    input = word_regex.replace_all(&input, |caps: &fancy_regex::Captures| {
         if caps.get(1).is_some() {
             // Already in brackets, preserve
             return caps.get(0).unwrap().as_str().to_string();
         }
 
-        let matched = caps.get(2).unwrap().as_str();
+        let letters = caps.get(2).unwrap().as_str();
+        let digits = caps.get(3).map_or("", |m| m.as_str());
+        let full_match = format!("{}{}", letters, digits);
 
-        // Check if this variable should be excluded (kept unbbracketed)
+        // Check if this is the excluded variable (function parameter) - always bracket it
         if let Some(excluded) = exclude_var {
-            if matched == excluded {
-                return format!("[{}]", matched);
+            if full_match == excluded {
+                return format!("[{}]", full_match);
             }
         }
 
-        // Check if it's a known function - if so, leave it alone
-        if KNOWN_FUNCTIONS.contains(&matched) {
-            return matched.to_string();
+        // Check if it's a known function - leave it alone
+        if KNOWN_FUNCTIONS.contains(&letters) {
+            return full_match;
         }
 
-        // Try to parse as letter + digits
-        let mut chars = matched.chars();
-        let letter = chars.next().unwrap().to_string();
-        let digits: String = chars.collect();
+        // Check if the entire sequence is a defined variable (like x2, y1, abc, etc.)
+        if defined_vars.contains_key(&full_match) {
+            return format!("[{}]", full_match);
+        }
 
-        if !digits.is_empty() {
-            // Has digits - prioritize full match (e.g., x2, y10)
-            if defined_vars.contains_key(matched) {
-                format!("[{}]", matched)
+        // For single letter with digits (like x2)
+        if letters.len() == 1 {
+            if !digits.is_empty() && defined_vars.contains_key(letters) {
+                // x2 where x is defined -> [x]2
+                return format!("[{}]{}", letters, digits);
+            } else if digits.is_empty() && defined_vars.contains_key(letters) {
+                // Single letter variable
+                return format!("[{}]", letters);
             }
-            // Check if just the letter is defined (for cases like x2 meaning x*2)
-            else if defined_vars.contains_key(&letter) {
-                format!("[{}]{}", letter, digits)
-            }
-            else {
-                matched.to_string()
-            }
-        } else {
-            // No digits - just a single letter
-            if defined_vars.contains_key(matched) {
-                format!("[{}]", matched)
+            return full_match;
+        }
+
+        // Multiple letters - split into individual variables
+        let mut result = String::new();
+        for ch in letters.chars() {
+            let ch_str = ch.to_string();
+            if defined_vars.contains_key(&ch_str) {
+                result.push_str(&format!("[{}]", ch_str));
             } else {
-                matched.to_string()
+                result.push(ch);
             }
         }
+        result.push_str(digits);
+        result
     }).to_string();
 
     input
