@@ -1,6 +1,5 @@
-
+#[allow(dead_code, unused_imports)]
 use crate::eval_context::EvalContext;
-use crate::unit_conversion::{UNITS_MAGNITUDES, UNITS_KNOWN};
 use crate::variable::valid_variable_name;
 use crate::function::Function;
 use meval::{Expr};

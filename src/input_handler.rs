@@ -1,8 +1,9 @@
+#[allow(dead_code)]
 use crate::vi_inputs::History;
 use color_eyre::Result;
 use crate::eval::evaluate_input;
 use crate::eval_context::EvalContext;
-use ratatui::crossterm::event::{self, KeyCode, KeyEventKind, KeyModifiers};
+use ratatui::crossterm::event::{self, KeyCode, KeyEventKind};
 use ratatui::crossterm::cursor::SetCursorStyle;
 use ratatui::crossterm::ExecutableCommand;
 use ratatui::layout::{Constraint, Layout, Position};
@@ -152,14 +153,7 @@ impl<'a> InputHandler<'a> {
     }
 
 
-    fn get_last_history(&mut self) {
-        self.input.clear();
-        if let Some(last) = self.history.get_last() {
-            self.input = last.to_string();
-        }
-    }
-
-    fn enter_char(&mut self, new_char: char) {
+   fn enter_char(&mut self, new_char: char) {
         let index = self.byte_index();
         self.input.insert(index, new_char);
         self.move_cursor_right();
@@ -457,7 +451,7 @@ impl<'a> InputHandler<'a> {
             }
         }
     }
-
+    #[allow(deprecated)]
     fn render(&mut self, frame: &mut Frame) {
         let main_vertical = Layout::vertical([
             Constraint::Length(1),
@@ -553,6 +547,7 @@ impl<'a> InputHandler<'a> {
                 ListItem::new(content)
             })
             .collect();
+
         let messages = List::new(messages)
             .block(Block::bordered().title("Results"))
             .highlight_style(Style::default().bg(Color::DarkGray))

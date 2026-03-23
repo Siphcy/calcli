@@ -11,7 +11,7 @@ const KNOWN_FUNCTIONS: &[&str] = &[
     "max", "min", "pow"
 ];
 
-pub fn format_variables(mut input: String, eval_ctx: &EvalContext) -> String {
+pub fn format_variables(input: String, eval_ctx: &EvalContext) -> String {
     format_variables_with_exclusion(input, eval_ctx, None)
 }
 
