@@ -243,7 +243,7 @@ cargo build --release
 | Command                                | Action                         |
 | -------------------------------------- | ------------------------------ |
 | `clear`                                | Clear all results              |
-| `:w <filename>` / `:import<filename`   | Export history as `<filename>` |
+| `:w <filename>` / `:import<filename>`  | Export history as `<filename>` |
 | `:r <filename>` / `:export <filename>` | Import history as `<filename>` |
 
 ### Syntax
