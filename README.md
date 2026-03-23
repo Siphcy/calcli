@@ -19,12 +19,13 @@ A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [Supported Functions/Operators](##supported-functions/operators)
+- [Features](#features)
 - [Usage](#usage)
-- [Keybindings](##keybindings)
-- [Dependencies](###dependencies)
-- [Project Structure](###Project-Structure)
+- [Installation](#installation)
+- [Supported Functions/Operators](#supported-functions-and-operators)
+- [Keybindings](#keybindings)
+- [Dependencies](#dependencies)
+- [Project Structure](#project-structure)
 - [Contributing](#contributing)
 
 ## Features
@@ -32,7 +33,7 @@ A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust
 - **Mathematical Functions** - Trig (sin, cos, tan), logarithms (ln, log), hyperbolic functions, and more
 - **Variable/Function System** - Define with `let x = 5`, 'let f(x) = 5x', supports `x`, `x1`, `y10` naming, automatic line references (`lin1`, `lin2`)
 - **Implicit Multiplication** - Write `2x`, `3(5+2)`, `2sin(1)` naturally, decimal shortcuts (`.5` → `0.5`)
-- **Vi-Style Keybindings** - Modal editing (Normal/Editing), `hjkl` navigation, `gg`/`GG`, word movements (`e`, `b`)
+- **Vi-Style Keybindings** - Normal/Insert modes, `hjkl` navigation, `gg`/`GG`, word movements (`e`, `b`)
 - **Rich TUI Interface** - Three-panel layout, scrollable history, live variable tracking, expression recall with `y`/`Enter`
 
 ## Usage
@@ -47,6 +48,12 @@ Open CLI
 
 ```bash
 calcli
+```
+
+Import history
+
+```
+calcli --import <file>
 ```
 
 #### Basic Calculations
@@ -186,7 +193,7 @@ cargo build --release
 ./target/release/calcli
 ```
 
-## Supported Functions/Operators
+## Supported Functions and Operators
 
 ### Mathematical Functions
 
@@ -233,9 +240,11 @@ cargo build --release
 
 ## Commands
 
-| Command | Action            |
-| ------- | ----------------- |
-| `clear` | Clear all results |
+| Command                                | Action                         |
+| -------------------------------------- | ------------------------------ |
+| `clear`                                | Clear all results              |
+| `:w <filename>` / `:import<filename`   | Export history as `<filename>` |
+| `:r <filename>` / `:export <filename>` | Import history as `<filename>` |
 
 ### Syntax
 
@@ -252,8 +261,8 @@ cargo build --release
 
 | Key       | Action                                    |
 | --------- | ----------------------------------------- |
-| `i`       | Enter editing mode at cursor              |
-| `a`       | Enter editing mode after cursor           |
+| `i`       | Enter insert mode at cursor               |
+| `a`       | Enter insert mode after cursor            |
 | `q`       | Quit                                      |
 | `h` / `←` | Move cursor left                          |
 | `l` / `→` | Move cursor right                         |
@@ -270,17 +279,19 @@ cargo build --release
 | `Enter`   | Evaluate expression                       |
 | `y`       | Copy selected result (full line) to input |
 | `Esc`     | Clear input                               |
+| `:`       | Open up command Prompt                    |
 
-### Editing Mode
+### Insert Mode
 
-| Key         | Action                |
-| ----------- | --------------------- |
-| `Enter`     | Evaluate expression   |
-| `Esc`       | Return to normal mode |
-| `←` / `→`   | Move cursor           |
-| `k` / `↑`   | Previous history      |
-| `j` / `↓`   | Next history          |
-| `Backspace` | Delete character      |
+| Key         | Action                 |
+| ----------- | ---------------------- |
+| `Enter`     | Evaluate expression    |
+| `Esc`       | Return to normal mode  |
+| `←` / `→`   | Move cursor            |
+| `k` / `↑`   | Previous history       |
+| `j` / `↓`   | Next history           |
+| `Backspace` | Delete character       |
+| `:`         | Open up command Prompt |
 
 ### Dependencies
 
