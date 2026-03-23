@@ -293,3 +293,18 @@ fn test_implicit_multiplication_edge_cases() {
     // 2xy = 2 * 3 * 4 = 24
     assert_eq!(eval_with_ctx(&mut ctx, "2xy").unwrap(), 24.0);
 }
+
+#[test]
+fn test_bare_assignment_suggestion() {
+    let err = eval_test("x=5").unwrap_err().to_string();
+    assert!(err.contains("Did you mean: `let x = 5`?"), "got: {}", err);
+
+    let err = eval_test("x = 5").unwrap_err().to_string();
+    assert!(err.contains("Did you mean: `let x = 5`?"), "got: {}", err);
+
+    let err = eval_test("myVar=sin(pi)").unwrap_err().to_string();
+    assert!(err.contains("Did you mean: `let myVar = sin(pi)`?"), "got: {}", err);
+
+    let err = eval_test("x=5+2").unwrap_err().to_string();
+    assert!(err.contains("Did you mean: `let x = 5+2`?"), "got: {}", err);
+}
