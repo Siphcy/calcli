@@ -6,6 +6,7 @@ pub struct EvalContext<'a> {
     pub parsed_results:  Vec<f64>,
     pub counter:  usize,
     pub defined_vars: HashMap<String, f64>,
+    pub history_entries: Vec<(String, f64)>,
 }
 impl<'a> EvalContext<'a> {
       pub fn new() -> Self {
@@ -14,6 +15,7 @@ impl<'a> EvalContext<'a> {
               parsed_results: Vec::new(),
               counter: 1,
               defined_vars: HashMap::new(),
+              history_entries: Vec::new(),
           }
       }
   }

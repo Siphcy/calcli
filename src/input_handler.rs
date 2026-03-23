@@ -1,4 +1,5 @@
 use crate::vi_inputs::History;
+use crate::history_io::{export_history, import_history};
 use color_eyre::Result;
 use crate::eval::evaluate_input;
 use crate::eval_context::EvalContext;
@@ -286,6 +287,56 @@ impl<'a> InputHandler<'a> {
         }
         if self.input == "clear" {
             self.messages.clear();
+            self.input.clear();
+            self.reset_cursor();
+            return;
+        }
+
+        // :w <filename> or :export <filename>
+        if let Some(path) = self.input.strip_prefix(":w").or_else(|| self.input.strip_prefix(":export")) {
+            let path = path.trim().to_string();
+            if path.is_empty() {
+                self.messages.push("Usage: :w <filename>  —  specify a file to export history to".to_string());
+            } else {
+                match export_history(&path, &self.eval_ctx.history_entries) {
+                    Ok(()) => self.messages.push(format!("Exported history to {}", path)),
+                    Err(e) => self.messages.push(format!("Export error: {}", e)),
+                }
+            }
+            self.input.clear();
+            self.reset_cursor();
+            return;
+        }
+
+        // :r <filename> or :import <filename>
+        if let Some(path) = self.input.strip_prefix(":r").or_else(|| self.input.strip_prefix(":import")) {
+            let path = path.trim().to_string();
+            if path.is_empty() {
+                self.messages.push("Usage: :r <filename>  —  specify a file to import history from".to_string());
+                self.input.clear();
+                self.reset_cursor();
+                return;
+            }
+            match import_history(&path) {
+                Ok(entries) => {
+                    for entry in entries {
+                        match evaluate_input(&mut self.eval_ctx, &entry.expression) {
+                            Ok(result) => {
+                                self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, entry.expression.trim(), result));
+                                self.eval_ctx.history_entries.push((entry.expression.clone(), result));
+                                self.eval_ctx.counter += 1;
+                            }
+                            Err(e) => {
+                                self.messages.push(format!("Import error on '{}': {}", entry.expression, e));
+                            }
+                        }
+                    }
+                    self.messages.push(format!("Imported history from {}", path));
+                }
+                Err(e) => self.messages.push(format!("Import error: {}", e)),
+            }
+            self.input.clear();
+            self.reset_cursor();
             return;
         }
 
@@ -293,6 +344,7 @@ impl<'a> InputHandler<'a> {
         match evaluate_input(&mut self.eval_ctx, &self.input.to_string()) {
         //TODO: Fix reuturn expression display for let parsing. i.e. let x=50 instead of let x = 50.
             Ok(result) => {
+                self.eval_ctx.history_entries.push((self.input.trim().to_string(), result));
                 self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, self.input.trim(), result));
                 self.eval_ctx.counter += 1;
             }
@@ -318,6 +370,32 @@ impl<'a> InputHandler<'a> {
     }
 
 
+
+    pub fn preload_history(&mut self, path: &str) {
+        match import_history(path) {
+            Ok(entries) => {
+                for entry in entries {
+                    match evaluate_input(&mut self.eval_ctx, &entry.expression) {
+                        Ok(result) => {
+                            self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, entry.expression.trim(), result));
+                            self.eval_ctx.history_entries.push((entry.expression, result));
+                            self.eval_ctx.counter += 1;
+                        }
+                        Err(e) => {
+                            self.messages.push(format!("Import error on '{}': {}", entry.expression, e));
+                        }
+                    }
+                }
+                self.messages.push(format!("Imported history from {}", path));
+                if !self.messages.is_empty() {
+                    self.messages_state.select(Some(self.messages.len().saturating_sub(1)));
+                }
+            }
+            Err(e) => {
+                self.messages.push(format!("Import error: {}", e));
+            }
+        }
+    }
 
     pub fn run(mut self, terminal: &mut DefaultTerminal) -> Result<()> {
         loop {
@@ -345,6 +423,13 @@ impl<'a> InputHandler<'a> {
                         KeyCode::Char('q') => {
                             return Ok(());
                         },
+                        KeyCode::Char(':') => {
+                            self.input.clear();
+                            self.reset_cursor();
+                            self.enter_char(':');
+                            self.input_mode = InputMode::Editing;
+                            self.last_key = None;
+                        }
                         KeyCode::Char('h') | KeyCode::Left => {
                             self.move_cursor_left();
                             self.last_key = None;

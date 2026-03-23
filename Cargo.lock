@@ -181,6 +181,8 @@ dependencies = [
  "fancy-regex 0.13.0",
  "meval",
  "ratatui",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
