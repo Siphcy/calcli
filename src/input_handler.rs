@@ -293,11 +293,15 @@ impl<'a> InputHandler<'a> {
         }
 
         // :w <filename> or :export <filename>
-        if let Some(path) = self.input.strip_prefix(":w ").or_else(|| self.input.strip_prefix(":export ")) {
+        if let Some(path) = self.input.strip_prefix(":w").or_else(|| self.input.strip_prefix(":export")) {
             let path = path.trim().to_string();
-            match export_history(&path, &self.eval_ctx.history_entries) {
-                Ok(()) => self.messages.push(format!("Exported history to {}", path)),
-                Err(e) => self.messages.push(format!("Export error: {}", e)),
+            if path.is_empty() {
+                self.messages.push("Usage: :w <filename>  —  specify a file to export history to".to_string());
+            } else {
+                match export_history(&path, &self.eval_ctx.history_entries) {
+                    Ok(()) => self.messages.push(format!("Exported history to {}", path)),
+                    Err(e) => self.messages.push(format!("Export error: {}", e)),
+                }
             }
             self.input.clear();
             self.reset_cursor();
@@ -305,8 +309,14 @@ impl<'a> InputHandler<'a> {
         }
 
         // :r <filename> or :import <filename>
-        if let Some(path) = self.input.strip_prefix(":r ").or_else(|| self.input.strip_prefix(":import ")) {
+        if let Some(path) = self.input.strip_prefix(":r").or_else(|| self.input.strip_prefix(":import")) {
             let path = path.trim().to_string();
+            if path.is_empty() {
+                self.messages.push("Usage: :r <filename>  —  specify a file to import history from".to_string());
+                self.input.clear();
+                self.reset_cursor();
+                return;
+            }
             match import_history(&path) {
                 Ok(entries) => {
                     for entry in entries {
