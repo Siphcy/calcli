@@ -4,6 +4,8 @@ mod unit_conversion;
 mod eval_context;
 mod vi_inputs;
 mod variable;
+mod function;
+mod parser;
 
 use eval_context::EvalContext;
 use eval::evaluate_input;

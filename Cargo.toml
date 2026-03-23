@@ -9,3 +9,4 @@ meval = "0.2"
 color-eyre = "0.6"
 clap = { version = "4.6.0", features = ["derive"] }
 fancy-regex = "0.13"
+indexmap = "2.0"

@@ -291,9 +291,24 @@ impl<'a> InputHandler<'a> {
 
         self.add_to_history();
         match evaluate_input(&mut self.eval_ctx, &self.input.to_string()) {
-        //TODO: Fix reuturn expression display for let parsing. i.e. let x=50 instead of let x = 50.
+
             Ok(result) => {
+                if self.input.starts_with("let ") && (self.input.contains("(") && self.input.contains(")")) {
+                    if let Some((func_name, func)) = self.eval_ctx.defined_funcs.last() {
+                    self.messages.push(format!("{}) {}({}) = {}", self.eval_ctx.counter, func_name, func.var_name, func.expr));
+                    }
+
+                } else if self.input.starts_with("let ") {
+                if let Some((var, value)) = self.eval_ctx.defined_vars.last() {
+                    self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, var, value));
+                    }
+
+                }
+
+                else {
                 self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, self.input.trim(), result));
+                }
+
                 self.eval_ctx.counter += 1;
             }
             Err(e) => {
@@ -444,16 +459,21 @@ impl<'a> InputHandler<'a> {
     }
 
     fn render(&mut self, frame: &mut Frame) {
-        let vertical = Layout::vertical([
+        let main_vertical = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(1),
             Constraint::Length(3),
+            Constraint::Length(1),
         ]);
     let horizontal = Layout::horizontal([Constraint::Percentage(80), Constraint::Percentage(20)]);
+    let definition_list_vertical = Layout::vertical([
+            Constraint::Percentage(50),
+            Constraint::Percentage(50)
+        ]);
 
-
-        let [help_area, messages_area, input_area] = vertical.areas(frame.area());
-        let [output, var_list] = horizontal.areas(messages_area);
+        let [help_area, messages_area, input_area, status_area] = main_vertical.areas(frame.area());
+        let [output, def_area] = horizontal.areas(messages_area);
+        let [var_list, func_list] = definition_list_vertical.areas(def_area);
 
         let (msg, style) = match self.input_mode {
             InputMode::Normal => (
@@ -497,9 +517,19 @@ impl<'a> InputHandler<'a> {
                 Style::default(),
             ),
         };
+
+        let status_msg = match self.input_mode {
+            InputMode::Normal => "NORMAL",
+            InputMode::Editing =>  "INSERT"
+        };
+
         let text = Text::from(Line::from(msg)).patch_style(style);
+
         let help_message = Paragraph::new(text);
         frame.render_widget(help_message, help_area);
+
+
+        frame.render_widget(Block::bordered().title(status_msg), status_area);
 
         let input = Paragraph::new(self.input.as_str())
             .style(match self.input_mode {
@@ -530,21 +560,32 @@ impl<'a> InputHandler<'a> {
 
         let mut var_rows: Vec<Row> = Vec::new();
         for (name, value) in self.eval_ctx.defined_vars.iter() {
-            // Skip lin# variables
             if !name.starts_with("lin") {
                 var_rows.push(Row::new(vec![name.clone(), value.to_string()]));
             }
         }
+        let mut func_rows: Vec<Row> = Vec::new();
+        for (name, func) in self.eval_ctx.defined_funcs.iter() {
+                func_rows.push(Row::new(vec![format!("{}({})", name, func.var_name ), func.expr.clone()]));
+        }
 
         let var_table = Table::new(
             var_rows,
-            [Constraint::Percentage(50), Constraint::Percentage(50)]
+            [Constraint::Percentage(20), Constraint::Percentage(80)]
         )
         .block(Block::bordered().title("Variables"))
         .highlight_style(Style::default().bg(Color::DarkGray))
         .highlight_symbol(">> ");
+        let func_table = Table::new(
+            func_rows,
+            [Constraint::Percentage(20), Constraint::Percentage(80)]
+        )
+        .block(Block::bordered().title("Functions"))
+        .highlight_style(Style::default().bg(Color::DarkGray))
+        .highlight_symbol(">> ");
 
-        frame.render_stateful_widget(var_table, var_list, &mut self.variables_state);
+        frame.render_stateful_widget(func_table, var_list, &mut self.variables_state);
+        frame.render_stateful_widget(var_table, func_list, &mut self.variables_state);
         frame.render_stateful_widget(messages, output, &mut self.messages_state);
     }
 }

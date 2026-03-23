@@ -4,3 +4,4 @@ pub mod unit_conversion;
 pub mod vi_inputs;
 pub mod function;
 pub mod variable;
+pub mod parser;
