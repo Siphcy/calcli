@@ -182,6 +182,8 @@ dependencies = [
  "indexmap",
  "meval",
  "ratatui",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

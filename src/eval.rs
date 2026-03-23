@@ -78,6 +78,16 @@ pub fn evaluate_input(
         }
     }
 
+    // Detect bare assignment syntax like `x=5` or `x = 5`
+    let assign_regex = Regex::new(r"^([a-zA-Z][a-zA-Z0-9]*)\s*=\s*(.+)$").unwrap();
+    if let Ok(Some(caps)) = assign_regex.captures(&input) {
+        let var_name = caps.get(1).unwrap().as_str();
+        let expr = caps.get(2).unwrap().as_str();
+        return Err(EvalError::ParseError(
+            format!("Did you mean: `let {} = {}`?", var_name, expr)
+        ));
+    }
+
     eval_expr(eval_ctx, &input)
 }
 
