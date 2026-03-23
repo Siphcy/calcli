@@ -8,6 +8,8 @@ pub struct EvalContext<'a> {
     pub counter:  usize,
     pub defined_vars: IndexMap<String, f64>,
     pub defined_funcs: IndexMap<String, Function>,
+    pub history_entries: Vec<(String, f64)>,
+
 }
 impl<'a> EvalContext<'a> {
       pub fn new() -> Self {
@@ -17,6 +19,7 @@ impl<'a> EvalContext<'a> {
               counter: 1,
               defined_vars: IndexMap::new(),
               defined_funcs: IndexMap::new(),
+              history_entries: Vec::new(),
           }
       }
   }

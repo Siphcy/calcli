@@ -27,13 +27,68 @@ A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust
 - [Project Structure](###Project-Structure)
 - [Contributing](#contributing)
 
+## Features
+
+- **Mathematical Functions** - Trig (sin, cos, tan), logarithms (ln, log), hyperbolic functions, and more
+- **Variable/Function System** - Define with `let x = 5`, 'let f(x) = 5x', supports `x`, `x1`, `y10` naming, automatic line references (`lin1`, `lin2`)
+- **Implicit Multiplication** - Write `2x`, `3(5+2)`, `2sin(1)` naturally, decimal shortcuts (`.5` → `0.5`)
+- **Vi-Style Keybindings** - Modal editing (Normal/Editing), `hjkl` navigation, `gg`/`GG`, word movements (`e`, `b`)
+- **Rich TUI Interface** - Three-panel layout, scrollable history, live variable tracking, expression recall with `y`/`Enter`
+
+## Usage
+
+Open TUI
+
+```bash
+calcli -t
+```
+
+Open CLI
+
+```bash
+calcli
+```
+
+#### Basic Calculations
+
+```
+2 + 2           # 4
+5 * 3           # 15
+sin(3.14159)    # ~0
+ln(2.718)       # ~1
+```
+
+#### Variables
+
+```
+let x = 5       # Store value in variable x
+let y = x * 2   # Use variables in expressions
+x + y           # 15
+```
+
+#### Implicit Multiplication
+
+```
+2x              # 2 * x
+3(5+2)          # 3 * (5 + 2) = 21
+2sin(1)         # 2 * sin(1)
+```
+
+#### Line References
+
+```
+5 + 3           # Result stored as lin1
+lin1 * 2        # Use previous result
+```
+
+#### Decimal Shortcuts
+
+```
+.5              # 0.5
+2.              # 2.0
+```
+
 ## Installation
-
-### Quick Install (Recommended)
-
-
-
-# Clone and run
 
 #### Linux/macOS
 
@@ -56,12 +111,15 @@ yay -S calcli
 # or
 paru -S calcli
 ```
+
 or from source
+
 ```bash
 git clone https://github.com/Siphcy/calcli.git
 cd calcli
 makepkg -si
 ```
+
 #### Nix/NixOS
 
 ```bash
@@ -128,14 +186,6 @@ cargo build --release
 ./target/release/calcli
 ```
 
-## Features
-
-- **Mathematical Functions** - Trig (sin, cos, tan), logarithms (ln, log), hyperbolic functions, and more
-- **Variable System** - Define with `let x = 5`, supports `x`, `x1`, `y10` naming, automatic line references (`lin1`, `lin2`)
-- **Implicit Multiplication** - Write `2x`, `3(5+2)`, `2sin(1)` naturally, decimal shortcuts (`.5` → `0.5`)
-- **Vi-Style Keybindings** - Modal editing (Normal/Editing), `hjkl` navigation, `gg`/`GG`, word movements (`e`, `b`)
-- **Rich TUI Interface** - Three-panel layout, scrollable history, live variable tracking, expression recall with `y`/`Enter`
-
 ## Supported Functions/Operators
 
 ### Mathematical Functions
@@ -189,52 +239,12 @@ cargo build --release
 
 ### Syntax
 
-- **Variable Assignment**: `let <name> = <expression>`
+- **Function Assignmet**: 'let <function> = <expression> (i.e. let f(x) = 5x)'
+- **Variable Assignment**: `let <name> = <expression> (i.e. let n = 5)`
 - **Line References**: `lin1`, `lin2`, `lin10`, etc.
 - **Implicit Multiplication**: `2x`, `3(5+2)`, `2sin(1)`
 - **Decimal Shortcuts**: `.5` → `0.5`, `2.` → `2.0`
 - **Bracket Notation**: `[variable]` for explicit variable reference
-
-## Usage
-
-### Basic Calculations
-
-```
-2 + 2           # 4
-5 * 3           # 15
-sin(3.14159)    # ~0
-ln(2.718)       # ~1
-```
-
-### Variables
-
-```
-let x = 5       # Store value in variable x
-let y = x * 2   # Use variables in expressions
-x + y           # 15
-```
-
-### Implicit Multiplication
-
-```
-2x              # 2 * x
-3(5+2)          # 3 * (5 + 2) = 21
-2sin(1)         # 2 * sin(1)
-```
-
-### Line References
-
-```
-5 + 3           # Result stored as lin1
-lin1 * 2        # Use previous result
-```
-
-### Decimal Shortcuts
-
-```
-.5              # 0.5
-2.              # 2.0
-```
 
 ## Keybindings
 
@@ -268,6 +278,8 @@ lin1 * 2        # Use previous result
 | `Enter`     | Evaluate expression   |
 | `Esc`       | Return to normal mode |
 | `←` / `→`   | Move cursor           |
+| `k` / `↑`   | Previous history      |
+| `j` / `↓`   | Next history          |
 | `Backspace` | Delete character      |
 
 ### Dependencies

@@ -592,7 +592,11 @@ impl<'a> InputHandler<'a> {
                     "Esc".bold(),
                     " to stop editing, ".into(),
                     "Enter".bold(),
-                    " to evaluate.".into(),
+                    " to evaluate, ".into(),
+                    "↑/↓".bold(),
+                    " history.".into(),
+
+
                 ],
                 Style::default(),
             ),
