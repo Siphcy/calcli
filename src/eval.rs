@@ -1,8 +1,9 @@
-
+#[allow(dead_code, unused_imports)]
 use crate::eval_context::EvalContext;
-use crate::unit_conversion::{UNITS_MAGNITUDES, UNITS_KNOWN};
 use crate::variable::valid_variable_name;
+use crate::function::Function;
 use meval::{Expr};
+use crate::parser::format_variables;
 use fancy_regex::Regex;
 use std::fmt;
 
@@ -62,10 +63,24 @@ pub fn evaluate_input(
     }
 
     if input.starts_with("let ") {
-        let (name, value) = parse_let_statement(eval_ctx, &input)?;
-        eval_ctx.ctx.var(&name, value);
-        eval_ctx.defined_vars.insert(name, value);
-        return Ok(value);
+        // Check if it's a function definition by checking if the left-hand side contains parentheses
+        // This distinguishes "let f(x) = ..." from "let n = (5)(67)"
+        let rest = input.strip_prefix("let ").unwrap();
+        let lhs = rest.split('=').next().unwrap_or("").trim();
+
+        if lhs.contains('(') && lhs.contains(')') {
+            // Function definition: let f(x) = ...
+            let func = parse_function_definition(eval_ctx, &input)?;
+            let func_name = func.func_name.clone();
+            eval_ctx.defined_funcs.insert(func_name, func);
+            return Ok(0.0); // Return 0 for function definitions
+        } else {
+            // Variable definition: let x = ...
+            let (name, value) = parse_let_statement(eval_ctx, &input)?;
+            eval_ctx.ctx.var(&name, value);
+            eval_ctx.defined_vars.insert(name, value);
+            return Ok(value);
+        }
     }
 
     // Detect bare assignment syntax like `x=5` or `x = 5`
@@ -99,45 +114,12 @@ fn eval_expr(
         }
     }
 
-    let line_regex = Regex::new(r"(\[[^\]]*\])|lin(\d+)(?!\d)").unwrap();
-    let var_regex = Regex::new(r"(\[[^\]]*\])|([a-z])(\d*)(?!\d)").unwrap();
+    // Evaluate function calls before processing variables
+    input = evaluate_function_calls(eval_ctx, &input)?;
 
-    input = line_regex.replace_all(&input, |caps: &fancy_regex::Captures| {
-        if caps.get(1).is_some() {
-            caps.get(0).unwrap().as_str().to_string()
-        } else {
-            format!("[lin{}]", caps.get(2).unwrap().as_str())
-        }
-    }).to_string();
+    let input = format_variables(input, eval_ctx);
 
-    let defined_vars = &eval_ctx.defined_vars;
-    input = var_regex.replace_all(&input, |caps: &fancy_regex::Captures| {
-        if caps.get(1).is_some() {
-            // Already in brackets, preserve
-            caps.get(0).unwrap().as_str().to_string()
-        } else {
-            let letter = caps.get(2).unwrap().as_str();
-            let digits = caps.get(3).map_or("", |m| m.as_str());
-            let full_var = format!("{}{}", letter, digits);
 
-            // Check if the full variable name exists (like x2, y1, etc.)
-            if defined_vars.contains_key(&full_var) {
-                format!("[{}]", full_var)
-            }
-            // Check if just the letter is defined (for cases like x2 meaning x*2)
-            else if !digits.is_empty() && defined_vars.contains_key(letter) {
-                format!("[{}]{}", letter, digits)
-            }
-            // Check if just the letter is a variable (without digits)
-            else if digits.is_empty() && defined_vars.contains_key(letter) {
-                format!("[{}]", letter)
-            }
-            // Not a defined variable, leave as-is (function name like 'sin', 'ln', etc.)
-            else {
-                full_var
-            }
-        }
-    }).to_string();
     let input: &str = &insert_implicit_multiplication(&input);
 
     // Convert brackets to parentheses for meval (which only supports parentheses)
@@ -152,6 +134,92 @@ fn eval_expr(
             Err(EvalError::ParseError(e.to_string()))
         }
     }
+}
+
+fn evaluate_function_calls(
+    eval_ctx: &mut EvalContext,
+    input: &str,
+) -> Result<String, EvalError> {
+    let mut result = input.to_string();
+
+    // Regex to match function calls: f(expression) or f2(expression)
+    // This matches function_name(anything_inside_parens)
+    let func_call_regex = Regex::new(r"([a-z]\d*)\(([^()]+)\)").unwrap();
+
+    // Keep replacing function calls until there are none left
+    // This handles nested calls like f(g(5))
+    loop {
+        let caps = match func_call_regex.captures(&result) {
+            Ok(Some(caps)) => caps,
+            Ok(None) => break, // No more function calls found
+            Err(_) => break,
+        };
+
+        let full_match = caps.get(0).unwrap().as_str();
+        let func_name = caps.get(1).unwrap().as_str();
+        let arg = caps.get(2).unwrap().as_str();
+
+        // Check if this function is defined
+        if let Some(func) = eval_ctx.defined_funcs.get(func_name).cloned() {
+            // Evaluate the function with the argument
+            let func_result = func.evaluate_func(eval_ctx, arg)?;
+
+            // Replace the function call with the result
+            result = result.replace(full_match, &func_result.to_string());
+        } else {
+            // Not a user-defined function, could be a built-in like sin, cos, etc.
+            // Leave it as-is and continue
+            break;
+        }
+    }
+
+    Ok(result)
+}
+
+fn parse_function_definition(
+    eval_ctx: &mut EvalContext,
+    input: &str
+) -> Result<Function, EvalError> {
+    let rest = input.strip_prefix("let ").ok_or(VarError::InvalidVariableSyntax(
+        "Use: let f(x) = expression".to_string()
+    ))?;
+
+    // Split by '=' to get left (func definition) and right (expression)
+    let parts: Vec<&str> = rest.splitn(2, '=').collect();
+    if parts.len() != 2 {
+        return Err(VarError::InvalidVariableSyntax(
+            "Missing '=' sign. Use: let f(x) = expression".to_string()
+        ).into());
+    }
+
+    let left = parts[0].trim();
+    let expr = parts[1].trim().to_string();
+
+    // Parse function name and parameter: f(x) or f2(x1)
+    let func_regex = Regex::new(r"^([a-z]\d*)\(([a-z]\d*)\)$").unwrap();
+    let caps = func_regex.captures(left)
+        .map_err(|_| VarError::InvalidVariableSyntax(
+            "Invalid function definition syntax".to_string()
+        ))?
+        .ok_or(VarError::InvalidVariableSyntax(
+            "Use: let f(x) = expression".to_string()
+        ))?;
+
+    let func_name = caps.get(1).unwrap().as_str().to_string();
+    let var_name = caps.get(2).unwrap().as_str().to_string();
+
+    // Validate both names
+    valid_variable_name(&func_name)?;
+    valid_variable_name(&var_name)?;
+
+    // Check if function name conflicts with defined variables
+    if eval_ctx.defined_vars.contains_key(&func_name) {
+        return Err(VarError::InvalidVariableName(
+            format!("Function name '{}' conflicts with existing variable", func_name)
+        ).into());
+    }
+
+    Ok(Function::new(func_name, var_name, expr))
 }
 
 fn parse_let_statement(

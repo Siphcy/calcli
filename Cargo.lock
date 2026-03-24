@@ -179,6 +179,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "fancy-regex 0.13.0",
+ "indexmap",
  "meval",
  "ratatui",
  "serde",

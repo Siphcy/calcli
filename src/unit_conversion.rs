@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 
 
 //TODO: More units and support magnitude shifting and standard units
-
+#[allow(dead_code)]
 pub static UNITS_MAGNITUDES: LazyLock<HashMap<&str, f64>> = LazyLock::new(|| {
     HashMap::from([
         ("k", 1000.0),
@@ -13,6 +13,7 @@ pub static UNITS_MAGNITUDES: LazyLock<HashMap<&str, f64>> = LazyLock::new(|| {
     ])
 });
 
+#[allow(dead_code)]
 pub static UNITS_KNOWN: [&str; 3] = [
     "m",
     "N",

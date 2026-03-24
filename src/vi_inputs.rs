@@ -1,5 +1,3 @@
-
-
 pub struct History {
     history_vec: Vec<String>,
     current_index: Option<usize>, // None means we're not navigating history
@@ -49,18 +47,15 @@ impl History {
             }
         }
     }
-
-    // Get the last (most recent) entry without changing navigation state
+    #[allow(dead_code)]
     pub fn get_last(&self) -> Option<&String> {
         self.history_vec.last()
     }
-
-    // Get current history position
+    #[allow(dead_code)]
     pub fn current(&self) -> Option<&String> {
         self.current_index.and_then(|i| self.history_vec.get(i))
     }
-
-    // Reset navigation to "present"
+    #[allow(dead_code)]
     pub fn reset_navigation(&mut self) {
         self.current_index = None;
     }

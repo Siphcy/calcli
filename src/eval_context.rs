@@ -1,12 +1,15 @@
 use meval::{Context};
-use std::collections::HashMap;
+use indexmap::IndexMap;
+use crate::function::Function;
 
 pub struct EvalContext<'a> {
     pub ctx:  Context<'a>,
     pub parsed_results:  Vec<f64>,
     pub counter:  usize,
-    pub defined_vars: HashMap<String, f64>,
+    pub defined_vars: IndexMap<String, f64>,
+    pub defined_funcs: IndexMap<String, Function>,
     pub history_entries: Vec<(String, f64)>,
+
 }
 impl<'a> EvalContext<'a> {
       pub fn new() -> Self {
@@ -14,7 +17,8 @@ impl<'a> EvalContext<'a> {
               ctx: Context::new(),
               parsed_results: Vec::new(),
               counter: 1,
-              defined_vars: HashMap::new(),
+              defined_vars: IndexMap::new(),
+              defined_funcs: IndexMap::new(),
               history_entries: Vec::new(),
           }
       }

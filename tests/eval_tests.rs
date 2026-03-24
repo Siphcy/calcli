@@ -295,16 +295,153 @@ fn test_implicit_multiplication_edge_cases() {
 }
 
 #[test]
-fn test_bare_assignment_suggestion() {
-    let err = eval_test("x=5").unwrap_err().to_string();
-    assert!(err.contains("Did you mean: `let x = 5`?"), "got: {}", err);
+fn test_variable_assignment_with_parentheses() {
+    let mut ctx = EvalContext::new();
 
-    let err = eval_test("x = 5").unwrap_err().to_string();
-    assert!(err.contains("Did you mean: `let x = 5`?"), "got: {}", err);
+    // Variable assignment with parentheses - should NOT be treated as function
+    assert_eq!(eval_with_ctx(&mut ctx, "let n = (5)(67)").unwrap(), 335.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "n").unwrap(), 335.0);
 
-    let err = eval_test("myVar=sin(pi)").unwrap_err().to_string();
-    assert!(err.contains("Did you mean: `let myVar = sin(pi)`?"), "got: {}", err);
+    // Another test case
+    assert_eq!(eval_with_ctx(&mut ctx, "let m = (2+3)(4)").unwrap(), 20.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "m").unwrap(), 20.0);
 
-    let err = eval_test("x=5+2").unwrap_err().to_string();
-    assert!(err.contains("Did you mean: `let x = 5+2`?"), "got: {}", err);
+    // More complex expression
+    assert_eq!(eval_with_ctx(&mut ctx, "let p = (10)(2) + (3)(4)").unwrap(), 32.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "p").unwrap(), 32.0);
+}
+
+#[test]
+fn test_function_definition_and_call() {
+    let mut ctx = EvalContext::new();
+
+    // Define a function f(x) = x^2
+    eval_with_ctx(&mut ctx, "let f(x) = x^2").unwrap();
+
+    // Call the function
+    assert_eq!(eval_with_ctx(&mut ctx, "f(5)").unwrap(), 25.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "f(10)").unwrap(), 100.0);
+
+    // Define another function g(y) = 2y + 1
+    eval_with_ctx(&mut ctx, "let g(y) = 2y + 1").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "g(3)").unwrap(), 7.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "g(0)").unwrap(), 1.0);
+}
+
+#[test]
+fn test_function_vs_variable_disambiguation() {
+    let mut ctx = EvalContext::new();
+
+    // Function definition - has parentheses on LEFT side of =
+    eval_with_ctx(&mut ctx, "let f(x) = x + 1").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "f(5)").unwrap(), 6.0);
+
+    // Variable assignment with parentheses on RIGHT side of =
+    assert_eq!(eval_with_ctx(&mut ctx, "let a = (2)(3)").unwrap(), 6.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "a").unwrap(), 6.0);
+
+    // Variable assignment with complex expression
+    assert_eq!(eval_with_ctx(&mut ctx, "let b = (4+1)(2)").unwrap(), 10.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "b").unwrap(), 10.0);
+
+    // Use the function in a variable assignment
+    assert_eq!(eval_with_ctx(&mut ctx, "let c = f(10)").unwrap(), 11.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "c").unwrap(), 11.0);
+}
+
+#[test]
+fn test_function_names_not_affected_by_variables() {
+    let mut ctx = EvalContext::new();
+
+    // Define variable n
+    eval_with_ctx(&mut ctx, "let n = 5").unwrap();
+
+    // sin(30) should still work, not get converted to si[n](30)
+    let result = eval_with_ctx(&mut ctx, "sin(30)").unwrap();
+    assert!((result - (-0.9880316240928618)).abs() < 1e-10);
+
+    // cos should work
+    let result = eval_with_ctx(&mut ctx, "cos(0)").unwrap();
+    assert!((result - 1.0).abs() < 1e-10);
+
+    // ln should work
+    let result = eval_with_ctx(&mut ctx, "ln(1)").unwrap();
+    assert!((result - 0.0).abs() < 1e-10);
+
+    // Variable n should still work
+    assert_eq!(eval_with_ctx(&mut ctx, "n").unwrap(), 5.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "2n").unwrap(), 10.0);
+}
+
+#[test]
+fn test_variable_with_digit_sequences() {
+    let mut ctx = EvalContext::new();
+
+    // Just n defined
+    eval_with_ctx(&mut ctx, "let n = 5").unwrap();
+    // n1n should be [n] * 1 * [n] = 5 * 1 * 5 = 25
+    assert_eq!(eval_with_ctx(&mut ctx, "n1n").unwrap(), 25.0);
+
+    // Now define n1
+    eval_with_ctx(&mut ctx, "let n1 = 10").unwrap();
+    // n1n should now be [n1] * [n] = 10 * 5 = 50
+    assert_eq!(eval_with_ctx(&mut ctx, "n1n").unwrap(), 50.0);
+
+    // n1 alone should be 10
+    assert_eq!(eval_with_ctx(&mut ctx, "n1").unwrap(), 10.0);
+
+    // n2 where n2 is not defined but n is should be [n] * 2
+    assert_eq!(eval_with_ctx(&mut ctx, "n2").unwrap(), 10.0);
+}
+
+#[test]
+fn test_multi_letter_variable_sequences() {
+    let mut ctx = EvalContext::new();
+
+    eval_with_ctx(&mut ctx, "let x = 2").unwrap();
+    eval_with_ctx(&mut ctx, "let y = 3").unwrap();
+    eval_with_ctx(&mut ctx, "let z = 4").unwrap();
+
+    // xyz should be [x] * [y] * [z] = 2 * 3 * 4 = 24
+    assert_eq!(eval_with_ctx(&mut ctx, "xyz").unwrap(), 24.0);
+
+    // xy should be [x] * [y] = 2 * 3 = 6
+    assert_eq!(eval_with_ctx(&mut ctx, "xy").unwrap(), 6.0);
+
+    // xz should be [x] * [z] = 2 * 4 = 8
+    assert_eq!(eval_with_ctx(&mut ctx, "xz").unwrap(), 8.0);
+
+    // xyy should be [x] * [y] * [y] = 2 * 3 * 3 = 18
+    assert_eq!(eval_with_ctx(&mut ctx, "xyy").unwrap(), 18.0);
+}
+
+#[test]
+fn test_mixed_defined_undefined_letters() {
+    let mut ctx = EvalContext::new();
+
+    eval_with_ctx(&mut ctx, "let x = 2").unwrap();
+    // xa where a is undefined should be xa (not converted)
+    assert!(eval_with_ctx(&mut ctx, "xa").is_err());
+
+    // But x alone should work
+    assert_eq!(eval_with_ctx(&mut ctx, "x").unwrap(), 2.0);
+
+    // And x with numbers should work: x2 = [x] * 2
+    assert_eq!(eval_with_ctx(&mut ctx, "x2").unwrap(), 4.0);
+}
+
+#[test]
+fn test_parentheses_multiplication_with_variables() {
+    let mut ctx = EvalContext::new();
+
+    eval_with_ctx(&mut ctx, "let n = 5").unwrap();
+
+    // (n)(n) should be [n] * [n] = 5 * 5 = 25
+    assert_eq!(eval_with_ctx(&mut ctx, "(n)(n)").unwrap(), 25.0);
+
+    // (2)(n) should be 2 * [n] = 2 * 5 = 10
+    assert_eq!(eval_with_ctx(&mut ctx, "(2)(n)").unwrap(), 10.0);
+
+    // (n+1)(n-1) should be (5+1) * (5-1) = 6 * 4 = 24
+    assert_eq!(eval_with_ctx(&mut ctx, "(n+1)(n-1)").unwrap(), 24.0);
 }
