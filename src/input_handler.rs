@@ -13,9 +13,7 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Table, Row, Block, List, ListItem, Paragraph, ListState, TableState};
 use ratatui::{DefaultTerminal, Frame};
 
-//TODO: Window cannot scroll and lines go past and become out of view. and a consistent gap
-//between the bottom of the window and some nth line (s.t. nth = height/2.5?? with floor value)
-//Add a variable box list.
+//TODO: add window selection
 
 pub struct InputHandler<'a> {
     input: String,
@@ -159,6 +157,15 @@ impl<'a> InputHandler<'a> {
         self.input.insert(index, new_char);
         self.move_cursor_right();
     }
+
+   fn delete_char_indexed(&mut self) {
+
+    let index = self.byte_index();
+    if self.input.char_indices().map(|(i, _)| i).nth(index) != None {
+        self.input.remove(index);
+
+        }
+            }
 
     fn byte_index(&self) -> usize {
         self.input
@@ -511,6 +518,10 @@ impl<'a> InputHandler<'a> {
                             self.copy_selected_line();
                             self.last_key = None;
                         }
+                        KeyCode::Char('x') => {
+                            self.delete_char_indexed();
+                            self.last_key = None;
+                        }
 
                         _ => {
                             self.last_key = None;
@@ -522,7 +533,6 @@ impl<'a> InputHandler<'a> {
                         KeyCode::Backspace => self.delete_char(),
                         KeyCode::Left => self.move_cursor_left(),
                         KeyCode::Right => self.move_cursor_right(),
-                        //TODO: put into helper area
                         KeyCode::Up => {
                             self.get_previous_history();
                         }
