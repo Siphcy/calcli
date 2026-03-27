@@ -1,6 +1,6 @@
 # Maintainer: Siphcy archlinux.gloating053@passmail.net
 pkgname=calcli
-pkgver=0.1.2
+pkgver=0.1.3
 pkgrel=1
 pkgdesc="A lightweight TUI scientific calculator with Vi-style keybindings"
 arch=('x86_64')

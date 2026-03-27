@@ -6,15 +6,21 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
       in
       {
         packages.default = pkgs.rustPlatform.buildRustPackage {
           pname = "calcli";
-          version = "0.1.2";
+          version = "0.1.3";
 
           src = ./.;
 
