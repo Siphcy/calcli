@@ -106,14 +106,6 @@ fn eval_expr(
         return Err(EvalError::EmptyInput);
     }
 
-    for n in 1..eval_ctx.counter {
-        if let Some(&value) = eval_ctx.parsed_results.get(n - 1) {
-            let var_name = format!("lin{}", n);
-            eval_ctx.ctx.var(&var_name, value);
-            eval_ctx.defined_vars.insert(var_name, value);
-        }
-    }
-
     // Evaluate function calls before processing variables
     input = evaluate_function_calls(eval_ctx, &input)?;
 
@@ -127,6 +119,10 @@ fn eval_expr(
 
     match input.parse::<Expr>().and_then(|e| e.eval_with_context(&eval_ctx.ctx)) {
         Ok(result) => {
+            let line_name = format!("lin{}",eval_ctx.counter);
+            eval_ctx.ctx.var(&line_name, result);
+            eval_ctx.defined_vars.insert(line_name, result);
+
             eval_ctx.parsed_results.push(result);
             Ok(result)
         }
