@@ -49,9 +49,9 @@ pub fn assign_batch(eval_ctx: &mut EvalContext, input: &String) -> Result<f64, E
         }
     }
 
-    // Matches batch assignments with functions and/or variables: let [f(x), y, g(z)] = [x^2, 5, z*2]
-    // Also matches single assignments: let [f(x)] = [x^2]
-    let batch_regex = Regex::new(r"^let\s+\[\s*((?:[a-z]\d*\([a-z]\d*\)|[a-z]\d*)(?:\s*,\s*(?:[a-z]\d*\([a-z]\d*\)|[a-z]\d*))*)\s*\]\s*=\s*\[\s*(.+)\s*\]$").unwrap();
+    // Matches batch assignments: let [f(x), y, g(z)] = [x^2, 5, z*2]
+    // Simplified regex - validation happens after parsing
+    let batch_regex = Regex::new(r"^let\s+\[\s*([^\]]+)\s*\]\s*=\s*\[\s*(.+)\s*\]$").unwrap();
 
     if let Ok(Some(caps)) = batch_regex.captures(&input) {
         let def_str = caps.get(1).unwrap().as_str();
@@ -90,10 +90,8 @@ pub fn assign_batch(eval_ctx: &mut EvalContext, input: &String) -> Result<f64, E
     // If not a batch assignment, handle as single definition
     let (name, var) = tidy_definition_input(input)?;
 
-
     eval_ctx.recently_assigned.push((name.to_string(), var.to_string()));
-    return assign_definition(eval_ctx, name, var);
-
+    assign_definition(eval_ctx, name, var)
 }
 
 pub fn assign_definition(eval_ctx: &mut EvalContext, def_name: &str, def_value: &str) -> Result<f64, EvalError> {
@@ -129,9 +127,7 @@ fn tidy_definition_input(input: &String) -> Result<(&str, &str), EvalError> {
             "Missing '=' sign. Use: let x = 5".to_string()
         ).into());
     }
-    return Ok((parts[0].trim(), parts[1].trim()))
-
-
+    Ok((parts[0].trim(), parts[1].trim()))
 }
 
 
