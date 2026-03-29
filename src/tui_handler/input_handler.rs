@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-use crate::vi_inputs::History;
+use super::vi_inputs::History;
 use crate::history_io::{export_history, import_history};
 use color_eyre::Result;
 use crate::eval::evaluate_input;
@@ -325,7 +325,6 @@ impl<'a> InputHandler<'a> {
                             Ok(result) => {
                                 self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, entry.expression.trim(), result));
                                 self.eval_ctx.history_entries.push((entry.expression.clone(), result));
-                                self.eval_ctx.counter += 1;
                             }
                             Err(e) => {
                                 self.messages.push(format!("Import error on '{}': {}", entry.expression, e));
@@ -348,8 +347,17 @@ impl<'a> InputHandler<'a> {
                 if self.input.starts_with("let ") {
                     let rest = self.input.strip_prefix("let ").unwrap();
                     let lhs = rest.split('=').next().unwrap_or("").trim();
+                    if self.input.contains("[") && self.input.ends_with("]") {
+                        let mut current_counter = self.eval_ctx.counter - self.eval_ctx.recently_assigned.iter().len();
+                        for (def_name, def_value) in self.eval_ctx.recently_assigned.iter() {
+                            current_counter += 1;
+                            let msg = format!("{}) {} = {}", current_counter, def_name, def_value);
 
-                    if lhs.contains("(") && lhs.contains(")") {
+                                self.messages.push(format!("{}", msg,));
+                        }
+
+                    }
+                    else if lhs.contains("(") && lhs.contains(")") {
                         if let Some((func_name, func)) = self.eval_ctx.defined_funcs.last() {
                             self.messages.push(format!("{}) {}({}) = {}", self.eval_ctx.counter, func_name, func.var_name, func.expr));
                         }
@@ -363,7 +371,6 @@ impl<'a> InputHandler<'a> {
                 self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, self.input.trim(), result));
                 }
 
-                self.eval_ctx.counter += 1;
             }
             Err(e) => {
                 self.messages.push(format!("Error: {}", e));

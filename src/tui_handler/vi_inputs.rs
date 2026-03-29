@@ -55,8 +55,4 @@ impl History {
     pub fn current(&self) -> Option<&String> {
         self.current_index.and_then(|i| self.history_vec.get(i))
     }
-    #[allow(dead_code)]
-    pub fn reset_navigation(&mut self) {
-        self.current_index = None;
-    }
 }

@@ -1,12 +1,12 @@
 use calcli::eval::evaluate_input;
 use calcli::eval_context::EvalContext;
 
-fn eval_test(input: &str) -> Result<f64, calcli::eval::EvalError> {
+fn eval_test(input: &str) -> Result<f64, calcli::error::EvalError> {
     let mut ctx = EvalContext::new();
     evaluate_input(&mut ctx, input)
 }
 
-fn eval_with_ctx(ctx: &mut EvalContext, input: &str) -> Result<f64, calcli::eval::EvalError> {
+fn eval_with_ctx(ctx: &mut EvalContext, input: &str) -> Result<f64, calcli::error::EvalError> {
     evaluate_input(ctx, input)
 }
 
@@ -71,11 +71,9 @@ fn test_line_references() {
 
     // First calculation
     eval_with_ctx(&mut ctx, "5 + 3").unwrap();
-    ctx.counter += 1;
 
     // Second calculation
     eval_with_ctx(&mut ctx, "10 * 2").unwrap();
-    ctx.counter += 1;
 
     // Reference previous lines
     assert_eq!(eval_with_ctx(&mut ctx, "lin1").unwrap(), 8.0);
@@ -88,7 +86,6 @@ fn test_line_references_with_implicit_mult() {
     let mut ctx = EvalContext::new();
 
     eval_with_ctx(&mut ctx, "5").unwrap();
-    ctx.counter += 1;
 
     assert_eq!(eval_with_ctx(&mut ctx, "2lin1").unwrap(), 10.0);
     assert_eq!(eval_with_ctx(&mut ctx, "lin1(3)").unwrap(), 15.0);
@@ -169,11 +166,9 @@ fn test_combined_variables_and_lines() {
 
     // Line 1: x = 3
     eval_with_ctx(&mut ctx, "let x = 3").unwrap();
-    ctx.counter += 1;
 
     // Line 2: 2x
     eval_with_ctx(&mut ctx, "2x").unwrap();
-    ctx.counter += 1;
 
     // Line 3: lin2 + x
     let result = eval_with_ctx(&mut ctx, "lin2 + x").unwrap();
@@ -237,7 +232,6 @@ fn test_line_reference_multiple_digits() {
     // Create 12 line results
     for i in 1..=12 {
         eval_with_ctx(&mut ctx, &format!("{}", i)).unwrap();
-        ctx.counter += 1;
     }
 
     assert_eq!(eval_with_ctx(&mut ctx, "lin1").unwrap(), 1.0);
@@ -445,3 +439,505 @@ fn test_parentheses_multiplication_with_variables() {
     // (n+1)(n-1) should be (5+1) * (5-1) = 6 * 4 = 24
     assert_eq!(eval_with_ctx(&mut ctx, "(n+1)(n-1)").unwrap(), 24.0);
 }
+
+// ========== User-Defined Function Tests ==========
+
+#[test]
+fn test_function_basic() {
+    let mut ctx = EvalContext::new();
+
+    // Define f(x) = x^2
+    eval_with_ctx(&mut ctx, "let f(x) = x^2").unwrap();
+
+    assert_eq!(eval_with_ctx(&mut ctx, "f(2)").unwrap(), 4.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "f(5)").unwrap(), 25.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "f(10)").unwrap(), 100.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "f(0)").unwrap(), 0.0);
+}
+
+#[test]
+fn test_function_linear() {
+    let mut ctx = EvalContext::new();
+
+    // Define g(x) = 2x + 3
+    eval_with_ctx(&mut ctx, "let g(x) = 2x + 3").unwrap();
+
+    assert_eq!(eval_with_ctx(&mut ctx, "g(0)").unwrap(), 3.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "g(1)").unwrap(), 5.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "g(5)").unwrap(), 13.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "g(-2)").unwrap(), -1.0);
+}
+
+#[test]
+fn test_function_with_expressions() {
+    let mut ctx = EvalContext::new();
+
+    // Define h(x) = (x+1)(x-1)
+    eval_with_ctx(&mut ctx, "let h(x) = (x+1)(x-1)").unwrap();
+
+    // h(x) = x^2 - 1
+    assert_eq!(eval_with_ctx(&mut ctx, "h(0)").unwrap(), -1.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "h(2)").unwrap(), 3.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "h(5)").unwrap(), 24.0);
+}
+
+#[test]
+fn test_function_with_variable() {
+    let mut ctx = EvalContext::new();
+
+    // Define variable
+    eval_with_ctx(&mut ctx, "let a = 10").unwrap();
+
+    // Define function that uses external variable
+    eval_with_ctx(&mut ctx, "let f(x) = x + a").unwrap();
+
+    assert_eq!(eval_with_ctx(&mut ctx, "f(5)").unwrap(), 15.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "f(0)").unwrap(), 10.0);
+}
+
+#[test]
+fn test_multiple_functions() {
+    let mut ctx = EvalContext::new();
+
+    // Define multiple functions
+    eval_with_ctx(&mut ctx, "let f(x) = x^2").unwrap();
+    eval_with_ctx(&mut ctx, "let g(y) = 2y").unwrap();
+    eval_with_ctx(&mut ctx, "let h(z) = z + 1").unwrap();
+
+    assert_eq!(eval_with_ctx(&mut ctx, "f(3)").unwrap(), 9.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "g(3)").unwrap(), 6.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "h(3)").unwrap(), 4.0);
+
+    // Combine function calls
+    assert_eq!(eval_with_ctx(&mut ctx, "f(2) + g(3)").unwrap(), 10.0); // 4 + 6
+}
+
+#[test]
+fn test_function_composition() {
+    let mut ctx = EvalContext::new();
+
+    // Define f(x) = x + 1
+    eval_with_ctx(&mut ctx, "let f(x) = x + 1").unwrap();
+
+    // Define g(x) = 2x
+    eval_with_ctx(&mut ctx, "let g(x) = 2x").unwrap();
+
+    // Test f(g(3)) which should be f(6) = 7
+    assert_eq!(eval_with_ctx(&mut ctx, "f(g(3))").unwrap(), 7.0);
+
+    // Test g(f(3)) which should be g(4) = 8
+    assert_eq!(eval_with_ctx(&mut ctx, "g(f(3))").unwrap(), 8.0);
+}
+
+#[test]
+fn test_function_with_complex_expressions() {
+    let mut ctx = EvalContext::new();
+
+    // Define f(x) = x^2 + 2x + 1
+    eval_with_ctx(&mut ctx, "let f(x) = x^2 + 2x + 1").unwrap();
+
+    // f(0) = 1
+    assert_eq!(eval_with_ctx(&mut ctx, "f(0)").unwrap(), 1.0);
+
+    // f(1) = 1 + 2 + 1 = 4
+    assert_eq!(eval_with_ctx(&mut ctx, "f(1)").unwrap(), 4.0);
+
+    // f(3) = 9 + 6 + 1 = 16
+    assert_eq!(eval_with_ctx(&mut ctx, "f(3)").unwrap(), 16.0);
+}
+
+#[test]
+fn test_function_with_implicit_multiplication() {
+    let mut ctx = EvalContext::new();
+
+    // Define function
+    eval_with_ctx(&mut ctx, "let f(x) = x^2").unwrap();
+
+    // 2 * f(3) = 2 * 9 = 18 (explicit multiplication)
+    assert_eq!(eval_with_ctx(&mut ctx, "2 * f(3)").unwrap(), 18.0);
+
+    // f(3) + f(2) = 9 + 4 = 13
+    assert_eq!(eval_with_ctx(&mut ctx, "f(3) + f(2)").unwrap(), 13.0);
+
+    // (f(2))^2 = 4^2 = 16
+    assert_eq!(eval_with_ctx(&mut ctx, "(f(2))^2").unwrap(), 16.0);
+}
+
+#[test]
+fn test_function_with_builtin_functions() {
+    use std::f64::consts::PI;
+    let mut ctx = EvalContext::new();
+
+    // Define f(x) = sin(x) + 1
+    eval_with_ctx(&mut ctx, &format!("let f(x) = sin(x) + 1")).unwrap();
+
+    // f(0) = sin(0) + 1 = 1
+    let result = eval_with_ctx(&mut ctx, "f(0)").unwrap();
+    assert!((result - 1.0).abs() < 1e-10);
+
+    // f(π/2) = sin(π/2) + 1 = 2
+    let result = eval_with_ctx(&mut ctx, &format!("f({})", PI / 2.0)).unwrap();
+    assert!((result - 2.0).abs() < 1e-10);
+}
+
+#[test]
+fn test_function_parameter_naming() {
+    let mut ctx = EvalContext::new();
+
+    // Functions with different parameter names
+    eval_with_ctx(&mut ctx, "let f(x) = x^2").unwrap();
+    eval_with_ctx(&mut ctx, "let g(y) = y^2").unwrap();
+    eval_with_ctx(&mut ctx, "let h(z) = z^2").unwrap();
+
+    // All should work the same way
+    assert_eq!(eval_with_ctx(&mut ctx, "f(3)").unwrap(), 9.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "g(3)").unwrap(), 9.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "h(3)").unwrap(), 9.0);
+}
+
+// ========== Batch/Array Assignment Tests ==========
+
+#[test]
+fn test_batch_assignment_single() {
+    let mut ctx = EvalContext::new();
+
+    // Single item in brackets should also work: [f(x)] = [x^2]
+    eval_with_ctx(&mut ctx, "let [f(x)] = [x^2]").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "f(5)").unwrap(), 25.0);
+
+    // Single variable: [x] = [10]
+    eval_with_ctx(&mut ctx, "let [x] = [10]").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "x").unwrap(), 10.0);
+}
+
+#[test]
+fn test_batch_assignment_simple() {
+    let mut ctx = EvalContext::new();
+
+    // Assign multiple variables at once: [x, y, z] = [1, 2, 3]
+    eval_with_ctx(&mut ctx, "let [x, y, z] = [1, 2, 3]").unwrap();
+
+    assert_eq!(eval_with_ctx(&mut ctx, "x").unwrap(), 1.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "y").unwrap(), 2.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "z").unwrap(), 3.0);
+}
+
+#[test]
+fn test_batch_assignment_expressions() {
+    let mut ctx = EvalContext::new();
+
+    // Assign with expressions: [a, b, c] = [2+3, 4*5, 10/2]
+    eval_with_ctx(&mut ctx, "let [a, b, c] = [2+3, 4*5, 10/2]").unwrap();
+
+    assert_eq!(eval_with_ctx(&mut ctx, "a").unwrap(), 5.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "b").unwrap(), 20.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "c").unwrap(), 5.0);
+}
+
+#[test]
+fn test_batch_assignment_functions() {
+    let mut ctx = EvalContext::new();
+
+    // Assign functions: [f(x), g(y)] = [x^2, 2y]
+    eval_with_ctx(&mut ctx, "let [f(x), g(y)] = [x^2, 2y]").unwrap();
+
+    assert_eq!(eval_with_ctx(&mut ctx, "f(3)").unwrap(), 9.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "g(5)").unwrap(), 10.0);
+}
+
+#[test]
+fn test_batch_assignment_mixed() {
+    let mut ctx = EvalContext::new();
+
+    // Mix variables and functions: [f(x), a, g(y)] = [x^2, 10, y+1]
+    eval_with_ctx(&mut ctx, "let [f(x), a, g(y)] = [x^2, 10, y+1]").unwrap();
+
+    assert_eq!(eval_with_ctx(&mut ctx, "f(5)").unwrap(), 25.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "a").unwrap(), 10.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "g(3)").unwrap(), 4.0);
+}
+
+#[test]
+fn test_batch_assignment_using_variables() {
+    let mut ctx = EvalContext::new();
+
+    // Define a variable first
+    eval_with_ctx(&mut ctx, "let n = 5").unwrap();
+
+    // Use it in batch assignment
+    eval_with_ctx(&mut ctx, "let [x, y] = [n, n*2]").unwrap();
+
+    assert_eq!(eval_with_ctx(&mut ctx, "x").unwrap(), 5.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "y").unwrap(), 10.0);
+}
+
+#[test]
+fn test_batch_assignment_error_mismatch() {
+    let mut ctx = EvalContext::new();
+
+    // Too many variables, not enough values
+    let result = eval_with_ctx(&mut ctx, "let [x, y, z] = [1, 2]");
+    assert!(result.is_err());
+
+    // Too many values, not enough variables
+    let result = eval_with_ctx(&mut ctx, "let [x, y] = [1, 2, 3]");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_batch_assignment_with_spacing() {
+    let mut ctx = EvalContext::new();
+
+    // Test with various spacing
+    eval_with_ctx(&mut ctx, "let [x,y,z] = [1,2,3]").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "x").unwrap(), 1.0);
+
+    eval_with_ctx(&mut ctx, "let [a, b, c] = [4, 5, 6]").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "a").unwrap(), 4.0);
+
+    eval_with_ctx(&mut ctx, "let [ p , q ] = [ 7 , 8 ]").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "p").unwrap(), 7.0);
+}
+
+#[test]
+fn test_batch_then_use_in_expressions() {
+    let mut ctx = EvalContext::new();
+
+    // Batch assign
+    eval_with_ctx(&mut ctx, "let [x, y, z] = [2, 3, 4]").unwrap();
+
+    // Use in expressions
+    assert_eq!(eval_with_ctx(&mut ctx, "x + y + z").unwrap(), 9.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "xyz").unwrap(), 24.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "x^2 + y^2 + z^2").unwrap(), 29.0); // 4+9+16
+}
+
+// ========== Error Handling Tests ==========
+
+#[test]
+fn test_error_batch_mismatched_brackets() {
+    let mut ctx = EvalContext::new();
+
+    // Missing closing bracket
+    let result = eval_with_ctx(&mut ctx, "let [x, y = [1, 2]");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("closing bracket"));
+
+    // Missing opening bracket
+    let result = eval_with_ctx(&mut ctx, "let x, y] = [1, 2]");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("opening bracket"));
+}
+
+#[test]
+fn test_error_batch_one_side_brackets() {
+    let mut ctx = EvalContext::new();
+
+    // Left side has brackets, right doesn't
+    let result = eval_with_ctx(&mut ctx, "let [x, y] = 1, 2");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("brackets"));
+
+    // Right side has brackets, left doesn't
+    let result = eval_with_ctx(&mut ctx, "let x, y = [1, 2]");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("brackets"));
+}
+
+#[test]
+fn test_error_batch_empty_lists() {
+    let mut ctx = EvalContext::new();
+
+    // Empty variable list - this will fall through to regular definition parsing
+    let result = eval_with_ctx(&mut ctx, "let [] = [1, 2]");
+    assert!(result.is_err());
+    // Just verify it errors, not specific message
+
+    // Empty value list - this should catch the empty values error
+    let result = eval_with_ctx(&mut ctx, "let [x, y] = []");
+    assert!(result.is_err());
+    // The regex won't match [] as a valid value list, so it falls through
+}
+
+#[test]
+fn test_error_function_missing_parentheses() {
+    let mut ctx = EvalContext::new();
+
+    // Missing opening parenthesis
+    let result = eval_with_ctx(&mut ctx, "let fx) = x^2");
+    assert!(result.is_err());
+    let err_msg = result.unwrap_err().to_string();
+    assert!(err_msg.contains("(") || err_msg.contains("Missing"));
+
+    // Missing closing parenthesis
+    let result = eval_with_ctx(&mut ctx, "let f(x = x^2");
+    assert!(result.is_err());
+    let err_msg = result.unwrap_err().to_string();
+    assert!(err_msg.contains(")") || err_msg.contains("Missing"));
+}
+
+#[test]
+fn test_error_function_empty_parameter() {
+    let mut ctx = EvalContext::new();
+
+    // Empty parentheses
+    let result = eval_with_ctx(&mut ctx, "let f() = 5");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("no parameter"));
+}
+
+#[test]
+fn test_error_function_multiple_parameters() {
+    let mut ctx = EvalContext::new();
+
+    // Multiple parameters not supported
+    let result = eval_with_ctx(&mut ctx, "let f(x, y) = x + y");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("multiple parameters"));
+}
+
+#[test]
+fn test_error_function_conflicts_with_variable() {
+    let mut ctx = EvalContext::new();
+
+    // Define a variable first
+    eval_with_ctx(&mut ctx, "let f = 5").unwrap();
+
+    // Try to define a function with the same name
+    let result = eval_with_ctx(&mut ctx, "let f(x) = x^2");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("conflicts"));
+}
+
+#[test]
+fn test_error_variable_conflicts_with_function() {
+    let mut ctx = EvalContext::new();
+
+    // Define a function first
+    eval_with_ctx(&mut ctx, "let f(x) = x^2").unwrap();
+
+    // Try to define a variable with the same name
+    let result = eval_with_ctx(&mut ctx, "let f = 5");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("conflicts"));
+}
+
+#[test]
+fn test_error_empty_variable_name() {
+    let mut ctx = EvalContext::new();
+
+    // This should fail in parsing before reaching variable validation
+    let result = eval_with_ctx(&mut ctx, "let  = 5");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_error_empty_variable_value() {
+    let mut ctx = EvalContext::new();
+
+    // Variable with no value
+    let result = eval_with_ctx(&mut ctx, "let x = ");
+    assert!(result.is_err());
+    let err_msg = result.unwrap_err().to_string();
+    assert!(err_msg.contains("no value") || err_msg.contains("Empty"));
+}
+
+#[test]
+fn test_error_invalid_function_name_format() {
+    let mut ctx = EvalContext::new();
+
+    // Function name with multiple letters followed by digits not allowed
+    let result = eval_with_ctx(&mut ctx, "let func1(x) = x^2");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_function_redefinition_allowed() {
+    let mut ctx = EvalContext::new();
+
+    // Define a function
+    eval_with_ctx(&mut ctx, "let f(x) = x^2").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "f(3)").unwrap(), 9.0);
+
+    // Redefine it (should be allowed now - just overwrites)
+    eval_with_ctx(&mut ctx, "let f(x) = 2x").unwrap();
+    // After redefinition, f(3) should be 2*3 = 6
+    assert_eq!(eval_with_ctx(&mut ctx, "f(3)").unwrap(), 6.0);
+}
+
+#[test]
+fn test_variable_reassignment_order() {
+    let mut ctx = EvalContext::new();
+
+    // Define a variable
+    eval_with_ctx(&mut ctx, "let x = 5").unwrap();
+
+    // Define another variable
+    eval_with_ctx(&mut ctx, "let y = 10").unwrap();
+
+    // Reassign x - it should be moved to the end
+    eval_with_ctx(&mut ctx, "let x = 15").unwrap();
+
+    // The last defined variable should be x, not y
+    assert_eq!(ctx.defined_vars.last().unwrap().0, "x");
+    assert_eq!(*ctx.defined_vars.last().unwrap().1, 15.0);
+}
+
+// ========== Remove/Delete Tests ==========
+
+#[test]
+fn test_remove_variable() {
+    let mut ctx = EvalContext::new();
+
+    // Define a variable
+    eval_with_ctx(&mut ctx, "let x = 5").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "x").unwrap(), 5.0);
+
+    // Remove it
+    eval_with_ctx(&mut ctx, "remove x").unwrap();
+
+    // Now using x should error
+    assert!(eval_with_ctx(&mut ctx, "x").is_err());
+}
+
+#[test]
+fn test_remove_function() {
+    let mut ctx = EvalContext::new();
+
+    // Define a function
+    eval_with_ctx(&mut ctx, "let f(x) = x^2").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "f(3)").unwrap(), 9.0);
+
+    // Remove it
+    eval_with_ctx(&mut ctx, "remove f").unwrap();
+
+    // Now using f should error (treated as undefined variable)
+    assert!(eval_with_ctx(&mut ctx, "f(3)").is_err());
+}
+
+#[test]
+fn test_delete_alias() {
+    let mut ctx = EvalContext::new();
+
+    eval_with_ctx(&mut ctx, "let x = 10").unwrap();
+
+    // delete and rm should work as aliases
+    eval_with_ctx(&mut ctx, "delete x").unwrap();
+    assert!(eval_with_ctx(&mut ctx, "x").is_err());
+
+    eval_with_ctx(&mut ctx, "let y = 20").unwrap();
+    eval_with_ctx(&mut ctx, "rm y").unwrap();
+    assert!(eval_with_ctx(&mut ctx, "y").is_err());
+}
+
+#[test]
+fn test_remove_nonexistent() {
+    let mut ctx = EvalContext::new();
+
+    // Try to remove something that doesn't exist
+    let result = eval_with_ctx(&mut ctx, "remove nonexistent");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("not found"));
+}
+
+
