@@ -1,7 +1,7 @@
 mod tui_handler;
 mod definition_handler;
+mod conversion_handler;
 mod eval;
-mod unit_conversion;
 mod eval_context;
 mod history_io;
 mod parser;
