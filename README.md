@@ -5,7 +5,7 @@
 
 ![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=flat&logo=rust&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat)
-![Version](https://img.shields.io/badge/version-0.1.3-blue?style=flat)
+![Version](https://img.shields.io/badge/version-1.0.0-blue?style=flat)
 ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos%20%7C%20windows-lightgrey?style=flat)
 
 A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust.
