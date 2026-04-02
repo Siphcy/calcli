@@ -31,7 +31,8 @@ A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust
 ## Features
 
 - **Mathematical Functions** - Trig (sin, cos, tan), logarithms (ln, log), hyperbolic functions, and more
-- **Variable/Function System** - Define with `let x = 5`, 'let f(x) = 5x', supports `x`, `x1`, `y10` naming, automatic line references (`lin1`, `lin2`)
+- **Variable/Function System** - Define with `let x = 5`, `let f(x) = 5x`, batch assignments `let [x, y] = [1, 2]`, supports `x`, `x1`, `y10` naming, automatic line references (`lin1`, `lin2`)
+- **Definition Management** - Remove definitions with `remove x`, `delete f(x)`, or `rm y`
 - **Implicit Multiplication** - Write `2x`, `3(5+2)`, `2sin(1)` naturally, decimal shortcuts (`.5` → `0.5`)
 - **Vi-Style Keybindings** - Normal/Insert modes, `hjkl` navigation, `gg`/`GG`, word movements (`e`, `b`)
 - **Rich TUI Interface** - Three-panel layout, scrollable history, live variable tracking, expression recall with `y`/`Enter`
@@ -65,12 +66,31 @@ sin(3.14159)    # ~0
 ln(2.718)       # ~1
 ```
 
-#### Variables
+#### Variables and Functions
 
 ```
-let x = 5       # Store value in variable x
-let y = x * 2   # Use variables in expressions
-x + y           # 15
+let x = 5           # Store value in variable x
+let y = x * 2       # Use variables in expressions
+x + y               # 15
+
+let f(x) = x^2      # Define a function
+f(5)                # 25
+```
+
+#### Batch Assignments
+
+```
+let [x, y, z] = [1, 2, 3]       # Assign multiple variables at once
+let [f(x), g(y)] = [x^2, y*2]   # Define multiple functions
+let [a, h(x)] = [5, x+1]        # Mix variables and functions
+```
+
+#### Remove Definitions
+
+```
+remove x        # Remove variable x
+delete f        # Remove function f
+rm y            # Remove variable y (shorthand)
 ```
 
 #### Implicit Multiplication
@@ -186,7 +206,6 @@ Download the latest binary for your platform from [Releases](https://github.com/
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Clone and build
-cc861b6 (Added supprot to package managers and github work flow)
 git clone https://github.com/Siphcy/calcli.git
 cd calcli
 cargo build --release
@@ -240,16 +259,20 @@ cargo build --release
 
 ## Commands
 
-| Command                                | Action                         |
-| -------------------------------------- | ------------------------------ |
-| `clear`                                | Clear all results              |
-| `:w <filename>` / `:import<filename>`  | Export history as `<filename>` |
-| `:r <filename>` / `:export <filename>` | Import history as `<filename>` |
+| Command                                | Action                                |
+| -------------------------------------- | ------------------------------------- |
+| `clear`                                | Clear all results                     |
+| `remove <name>` / `delete <name>`      | Remove variable or function           |
+| `rm <name>`                            | Remove variable or function (alias)   |
+| `:w <filename>` / `:import<filename>`  | Export history as `<filename>`        |
+| `:r <filename>` / `:export <filename>` | Import history as `<filename>`        |
 
 ### Syntax
 
-- **Function Assignmet**: 'let <function> = <expression> (i.e. let f(x) = 5x)'
-- **Variable Assignment**: `let <name> = <expression> (i.e. let n = 5)`
+- **Function Assignment**: `let <function> = <expression>` (e.g., `let f(x) = 5x`)
+- **Variable Assignment**: `let <name> = <expression>` (e.g., `let n = 5`)
+- **Batch Assignment**: `let [x, y, f(z)] = [1, 2, z^2]` - assign multiple definitions at once
+- **Remove Definition**: `remove <name>`, `delete <name>`, or `rm <name>`
 - **Line References**: `lin1`, `lin2`, `lin10`, etc.
 - **Implicit Multiplication**: `2x`, `3(5+2)`, `2sin(1)`
 - **Decimal Shortcuts**: `.5` → `0.5`, `2.` → `2.0`
@@ -308,15 +331,27 @@ cargo build --release
 ```
 calcli/
 ├── src/
-│   ├── main.rs              # Entry point
-│   ├── input_handler.rs     # TUI and keybinding logic
-│   ├── eval.rs              # Expression evaluation engine
-│   ├── eval_context.rs      # Evaluation context management
-│   ├── vi_inputs.rs         # History navigation
-│   ├── function.rs          # Function definitions
-│   └── unit_conversion.rs   # Unit conversion support
+│   ├── main.rs                          # Entry point
+│   ├── lib.rs                           # Library exports
+│   ├── eval.rs                          # Expression evaluation engine
+│   ├── eval_context.rs                  # Evaluation context management
+│   ├── parser.rs                        # Variable formatting and parsing
+│   ├── error.rs                         # Error types
+│   ├── history_io.rs                    # History import/export
+│   ├── unit_conversion.rs               # Unit conversion support
+│   ├── definition_handler/              # Variable & function definitions
+│   │   ├── mod.rs
+│   │   ├── definition.rs                # Definition assignment logic
+│   │   ├── function.rs                  # Function structure
+│   │   ├── variable.rs                  # Variable validation
+│   │   ├── parse_function.rs            # Function parsing
+│   │   └── parse_variable.rs            # Variable parsing
+│   └── tui_handler/                     # TUI interface
+│       ├── mod.rs
+│       ├── input_handler.rs             # Input handling & UI rendering
+│       └── vi_inputs.rs                 # Vi-style keybindings
 ├── tests/
-│   └── eval_tests.rs        # Comprehensive test suite (23+ tests)
+│   └── eval_tests.rs                    # Comprehensive test suite (68 tests)
 ├── Cargo.toml
 └── README.md
 ```
@@ -327,11 +362,12 @@ Contributions are welcome! Areas for improvement:
 
 - [ ] Additional mathematical functions (factorial, combinations, etc.)
 - [ ] Unit conversion system
-- [ ] Custom function definitions
+- [ ] Multi-parameter functions (e.g., `f(x, y) = x + y`)
 - [ ] Expression graphing
 - [ ] Configuration file support
 - [ ] Themes and color customization
-- [ ] Export/import calculation history
+- [ ] Matrix operations
+- [ ] Complex number support
 
 ---
 

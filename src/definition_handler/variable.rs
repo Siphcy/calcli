@@ -1,8 +1,8 @@
-use crate::eval::VarError;
+use crate::error::DefError;
 
-pub fn valid_variable_name(var_name: &String) -> Result<(),VarError> {
+pub fn valid_variable_name(var_name: &String) -> Result<(),DefError> {
     if var_name.is_empty() || !var_name.chars().next().unwrap().is_alphabetic() {
-        return Err(VarError::InvalidVariableName(
+        return Err(DefError::InvalidDefinitionName(
             format!("Variable name must start with a letter. Got: '{}'", var_name)
         ).into());
     }
@@ -16,7 +16,7 @@ pub fn valid_variable_name(var_name: &String) -> Result<(),VarError> {
         while let Some(_) = chars.next() {
             if let Some(&next) = chars.peek() {
                 if !next.is_ascii_digit() {
-                    return Err(VarError::InvalidVariableIteration(
+                    return Err(DefError::InvalidDefinitionIteration(
                         format!("Variable '{}' must be a single letter or letter followed by digits (e.g., x, x2, y10)", var_name)
                     ).into());
                 }
@@ -25,3 +25,5 @@ pub fn valid_variable_name(var_name: &String) -> Result<(),VarError> {
     }
     Ok(())
 }
+
+
