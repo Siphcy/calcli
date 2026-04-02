@@ -1,18 +1,17 @@
-mod input_handler;
+mod tui_handler;
+mod definition_handler;
 mod eval;
 mod unit_conversion;
 mod eval_context;
-mod vi_inputs;
 mod history_io;
-mod variable;
-mod function;
 mod parser;
+mod error;
 
 use eval_context::EvalContext;
 use eval::evaluate_input;
 use history_io::import_history;
 use meval::eval_str;
-use input_handler::InputHandler;
+use tui_handler::input_handler::InputHandler;
 use clap::Parser;
 use color_eyre::Result;
 use std::io::{self, Write};
