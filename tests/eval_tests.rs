@@ -1,5 +1,6 @@
 use calcli::eval::evaluate_input;
 use calcli::eval_context::EvalContext;
+use std::f64::consts::{E, PI};
 
 fn eval_test(input: &str) -> Result<f64, calcli::error::EvalError> {
     let mut ctx = EvalContext::new();
@@ -46,8 +47,8 @@ fn test_variable_assignment() {
     assert_eq!(eval_with_ctx(&mut ctx, "x").unwrap(), 10.0);
 
     // Variable with number
-    assert_eq!(eval_with_ctx(&mut ctx, "let y1 = 20").unwrap(), 20.0);
-    assert_eq!(eval_with_ctx(&mut ctx, "y1").unwrap(), 20.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "let y_1 = 20").unwrap(), 20.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "y_1").unwrap(), 20.0);
 
     // Variable with expression
     assert_eq!(eval_with_ctx(&mut ctx, "let z = 2 + 3").unwrap(), 5.0);
@@ -57,12 +58,12 @@ fn test_variable_assignment() {
 #[test]
 fn test_variable_iteration_format() {
     let mut ctx = EvalContext::new();
-    assert_eq!(eval_with_ctx(&mut ctx, "let a1 = 5").unwrap(), 5.0);
-    assert_eq!(eval_with_ctx(&mut ctx, "let b2 = 10").unwrap(), 10.0);
-    assert_eq!(eval_with_ctx(&mut ctx, "let c123 = 15").unwrap(), 15.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "let a_1 = 5").unwrap(), 5.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "let b_2 = 10").unwrap(), 10.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "let c_123 = 15").unwrap(), 15.0);
 
-    assert_eq!(eval_with_ctx(&mut ctx, "a1 + b2").unwrap(), 15.0);
-    assert_eq!(eval_with_ctx(&mut ctx, "c123").unwrap(), 15.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "a_1 + b_2").unwrap(), 15.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "c_123").unwrap(), 15.0);
 }
 
 #[test]
@@ -76,9 +77,9 @@ fn test_line_references() {
     eval_with_ctx(&mut ctx, "10 * 2").unwrap();
 
     // Reference previous lines
-    assert_eq!(eval_with_ctx(&mut ctx, "lin1").unwrap(), 8.0);
-    assert_eq!(eval_with_ctx(&mut ctx, "lin2").unwrap(), 20.0);
-    assert_eq!(eval_with_ctx(&mut ctx, "lin1 + lin2").unwrap(), 28.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "lin_1").unwrap(), 8.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "lin_2").unwrap(), 20.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "lin_1 + lin_2").unwrap(), 28.0);
 }
 
 #[test]
@@ -87,8 +88,8 @@ fn test_line_references_with_implicit_mult() {
 
     eval_with_ctx(&mut ctx, "5").unwrap();
 
-    assert_eq!(eval_with_ctx(&mut ctx, "2lin1").unwrap(), 10.0);
-    assert_eq!(eval_with_ctx(&mut ctx, "lin1(3)").unwrap(), 15.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "2lin_1").unwrap(), 10.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "lin_1(3)").unwrap(), 15.0);
 }
 
 #[test]
@@ -170,8 +171,8 @@ fn test_combined_variables_and_lines() {
     // Line 2: 2x
     eval_with_ctx(&mut ctx, "2x").unwrap();
 
-    // Line 3: lin2 + x
-    let result = eval_with_ctx(&mut ctx, "lin2 + x").unwrap();
+    // Line 3: lin_2 + x
+    let result = eval_with_ctx(&mut ctx, "lin_2 + x").unwrap();
     assert_eq!(result, 9.0); // 6 + 3 = 9
 }
 
@@ -234,12 +235,12 @@ fn test_line_reference_multiple_digits() {
         eval_with_ctx(&mut ctx, &format!("{}", i)).unwrap();
     }
 
-    assert_eq!(eval_with_ctx(&mut ctx, "lin1").unwrap(), 1.0);
-    assert_eq!(eval_with_ctx(&mut ctx, "lin10").unwrap(), 10.0);
-    assert_eq!(eval_with_ctx(&mut ctx, "lin12").unwrap(), 12.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "lin_1").unwrap(), 1.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "lin_10").unwrap(), 10.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "lin_12").unwrap(), 12.0);
 
-    // lin1 should not match from lin10
-    assert_eq!(eval_with_ctx(&mut ctx, "lin1 + lin10").unwrap(), 11.0);
+    // lin_1 should not match from lin_10
+    assert_eq!(eval_with_ctx(&mut ctx, "lin_1 + lin_10").unwrap(), 11.0);
 }
 
 #[test]
@@ -373,16 +374,16 @@ fn test_variable_with_digit_sequences() {
 
     // Just n defined
     eval_with_ctx(&mut ctx, "let n = 5").unwrap();
-    // n1n should be [n] * 1 * [n] = 5 * 1 * 5 = 25
+    // n1n (no underscore) should be [n] * 1 * [n] = 5 * 1 * 5 = 25
     assert_eq!(eval_with_ctx(&mut ctx, "n1n").unwrap(), 25.0);
 
-    // Now define n1
-    eval_with_ctx(&mut ctx, "let n1 = 10").unwrap();
-    // n1n should now be [n1] * [n] = 10 * 5 = 50
-    assert_eq!(eval_with_ctx(&mut ctx, "n1n").unwrap(), 50.0);
+    // Now define n_1
+    eval_with_ctx(&mut ctx, "let n_1 = 10").unwrap();
+    // n_1n should now be [n_1] * [n] = 10 * 5 = 50
+    assert_eq!(eval_with_ctx(&mut ctx, "n_1n").unwrap(), 50.0);
 
-    // n1 alone should be 10
-    assert_eq!(eval_with_ctx(&mut ctx, "n1").unwrap(), 10.0);
+    // n_1 alone should be 10
+    assert_eq!(eval_with_ctx(&mut ctx, "n_1").unwrap(), 10.0);
 
     // n2 where n2 is not defined but n is should be [n] * 2
     assert_eq!(eval_with_ctx(&mut ctx, "n2").unwrap(), 10.0);
@@ -941,3 +942,37 @@ fn test_remove_nonexistent() {
 }
 
 
+
+#[test]
+fn test_multi_char_constant_recognition() {
+    let mut ctx = EvalContext::new();
+
+    // Test 1: xpi should work as x * pi
+    eval_with_ctx(&mut ctx, "let x = 2").unwrap();
+    let result = eval_with_ctx(&mut ctx, "xpi").unwrap();
+    let expected = 2.0 * PI;
+    assert!((result - expected).abs() < 0.0001, "xpi should equal x * pi, got {} expected {}", result, expected);
+}
+
+#[test]
+fn test_multi_letter_with_digits_separator() {
+    let mut ctx = EvalContext::new();
+
+    // Test eee_0 with e_0 defined - should not return 0
+    eval_with_ctx(&mut ctx, "let e_0 = 5").unwrap();
+    let result = eval_with_ctx(&mut ctx, "eee_0").unwrap();
+    let expected = E * E * 5.0; // [e][e][e_0]
+    assert!((result - expected).abs() < 0.01, "eee_0 should equal e * e * e_0, got {} expected {}", result, expected);
+}
+
+#[test]
+fn test_constant_function() {
+    let mut ctx = EvalContext::new();
+
+    // The constant function 'f' should be defined as f(x) = x^2
+    let result = eval_with_ctx(&mut ctx, "f(5)").unwrap();
+    assert_eq!(result, 25.0, "f(5) should equal 25");
+
+    let result = eval_with_ctx(&mut ctx, "f(3)").unwrap();
+    assert_eq!(result, 9.0, "f(3) should equal 9");
+}

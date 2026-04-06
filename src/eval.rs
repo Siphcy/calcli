@@ -5,6 +5,7 @@ use meval::Expr;
 use crate::parser::format_variables;
 use fancy_regex::Regex;
 use crate::conversion_handler::scientific_notation::convert_to_scientific;
+use crate::{VARIABLE_SEPARATOR, escape_separator};
 
 
 //TODO: Finish Convertor Parser
@@ -162,7 +163,7 @@ fn eval_expr(
         Ok(result) => {
 
             eval_ctx.counter += 1;
-            let line_name = format!("lin{}",eval_ctx.counter);
+            let line_name = format!("lin{}{}",VARIABLE_SEPARATOR, eval_ctx.counter);
             eval_ctx.ctx.var(&line_name, result);
             eval_ctx.defined_vars.insert(line_name, result);
 
@@ -180,9 +181,12 @@ fn evaluate_function_calls(
 ) -> Result<String, EvalError> {
     let mut result = input.to_string();
 
-    // Regex to match function calls: f(expression) or f2(expression)
+    // Regex to match function calls: f(expression) or f_2(expression)
     // This matches function_name(anything_inside_parens)
-    let func_call_regex = Regex::new(r"([a-z]\d*)\(([^()]+)\)").unwrap();
+    // Dynamically build regex with separator
+    let separator_escaped = escape_separator();
+    let pattern = format!(r"([a-z](?:{}?\d+)?)\(([^()]+)\)", separator_escaped);
+    let func_call_regex = Regex::new(&pattern).unwrap();
 
     // Keep replacing function calls until there are none left
     // This handles nested calls like f(g(5))

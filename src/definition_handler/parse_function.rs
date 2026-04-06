@@ -3,6 +3,7 @@ use crate::error::{EvalError, DefError};
 use super::function::Function;
 use super::variable::valid_variable_name;
 use fancy_regex::Regex;
+use crate::{VARIABLE_SEPARATOR, escape_separator};
 
 pub fn parse_function_definition(
     eval_ctx: &mut EvalContext,
@@ -35,14 +36,18 @@ pub fn parse_function_definition(
         ).into());
     }
 
-    // Parse function name and parameter: f(x) or f2(x1)
-    let func_regex = Regex::new(r"^([a-z]\d*)\(([a-z]\d*)\)$").unwrap();
+    // Parse function name and parameter: f(x) or f_2(x_1)
+    // Dynamically build regex with separator
+    let separator_escaped = escape_separator();
+    let pattern = format!(r"^([a-z](?:{}?\d+)?)\(([a-z](?:{}?\d+)?)\)$", separator_escaped, separator_escaped);
+    let func_regex = Regex::new(&pattern).unwrap();
     let caps = func_regex.captures(name)
         .map_err(|_| DefError::InvalidDefinitionSyntax(
             format!("Invalid function syntax '{}'. Use: let f(x) = expression", name)
         ))?
         .ok_or(DefError::InvalidDefinitionSyntax(
-            format!("Invalid function format '{}'. Function name and parameter must be single letters optionally followed by digits. Use: let f(x) = expression", name)
+            format!("Invalid function format '{}'. Function name and parameter must be single letters optionally followed by '{}' and digits. Use: let f(x) = expression or let f{}2(x{}1) = expression",
+                    name, VARIABLE_SEPARATOR, VARIABLE_SEPARATOR, VARIABLE_SEPARATOR)
         ))?;
 
     let func_name = caps.get(1).unwrap().as_str().to_string();

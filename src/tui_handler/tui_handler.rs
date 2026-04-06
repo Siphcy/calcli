@@ -579,8 +579,11 @@ impl<'a> TuiHandler<'a> {
                         },
                         KeyCode::Char('g') => {
                             if self.last_key == Some('g') {
+                                if self.tui_selection_map.selected("RESULT_WIN") {
+
                                 self.scroll_results_top();
                                 self.last_key = None;
+                                }
                             } else {
                                 self.last_key = Some('g');
                             }
@@ -720,17 +723,13 @@ impl<'a> TuiHandler<'a> {
                     "J".bold(),
                     "/".into(),
                     "K".bold(),
-                    " scroll results, ".into(),
+                    " scroll  ".into(),
                     "y".bold(),
                     " copy selected line, ".into(),
                     "gg".bold(),
                     "/".into(),
                     "gg".bold(),
                     " Jump through results, ".into(),
-                    "N".bold(),
-                    "/".into(),
-                    "P".bold(),
-                    " scroll vars.".into(),
                 ],
                 Style::default().add_modifier(Modifier::RAPID_BLINK),
             ),
