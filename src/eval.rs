@@ -4,6 +4,7 @@ use crate::error::EvalError;
 use meval::Expr;
 use crate::parser::format_variables;
 use fancy_regex::Regex;
+use crate::conversion_handler::scientific_notation::convert_to_scientific;
 
 
 //TODO: Finish Convertor Parser
@@ -65,6 +66,62 @@ pub fn evaluate_input(
         return Err(EvalError::ParseError(
             format!("'{}' not found. Cannot remove undefined variable or function.", name)
         ));
+    }
+
+    // Handle 'precision' command
+    if input.starts_with("precision ") {
+        let value_str = input.strip_prefix("precision ").unwrap().trim();
+        match value_str.parse::<usize>() {
+            Ok(n) if n > 0 && n <= 15 => {
+                eval_ctx.precision = n;
+                return Err(EvalError::ParseError(
+                    format!("Precision set to {} significant figures", n)
+                ));
+            }
+            Ok(_) => {
+                return Err(EvalError::ParseError(
+                    "Precision must be between 1 and 15".to_string()
+                ));
+            }
+            Err(_) => {
+                return Err(EvalError::ParseError(
+                    "Usage: precision <number>  (e.g., precision 6)".to_string()
+                ));
+            }
+        }
+    }
+
+    // Handle 'sci' command
+    if input.starts_with("sci ") || input == "sci toggle" {
+        if input == "sci toggle" {
+            eval_ctx.sci_notation_enabled = !eval_ctx.sci_notation_enabled;
+            let status = if eval_ctx.sci_notation_enabled { "enabled" } else { "disabled" };
+            return Err(EvalError::ParseError(
+                format!("Scientific notation {}", status)
+            ));
+        }
+
+        // Extract the argument after "sci "
+        let arg = input.strip_prefix("sci ").unwrap().trim();
+
+        // Try to parse as a direct number first
+        if let Ok(num) = arg.parse::<f64>() {
+            let result = convert_to_scientific(num, eval_ctx.precision);
+            return Err(EvalError::ParseError(result));
+        }
+
+        // Try to evaluate as an expression (e.g., "sci lin1" or "sci 2+3")
+        match eval_expr(eval_ctx, arg) {
+            Ok(num) => {
+                let result = convert_to_scientific(num, eval_ctx.precision);
+                return Err(EvalError::ParseError(result));
+            }
+            Err(_) => {
+                return Err(EvalError::ParseError(
+                    "Usage: sci <number>, sci <expression>, or sci toggle".to_string()
+                ));
+            }
+        }
     }
 
     // Detect bare assignment syntax like `x=5` or `x = 5`

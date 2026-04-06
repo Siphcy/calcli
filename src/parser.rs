@@ -8,7 +8,7 @@ const KNOWN_FUNCTIONS: &[&str] = &[
     "sinh", "cosh", "tanh", "asinh", "acosh", "atanh",
     "sqrt", "exp", "ln", "log", "log10", "log2",
     "abs", "floor", "ceil", "round",
-    "max", "min", "pow"
+    "max", "min", "pow",
 ];
 
 pub fn format_variables(input: String, eval_ctx: &EvalContext) -> String {

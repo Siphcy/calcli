@@ -6,15 +6,16 @@ mod eval_context;
 mod history_io;
 mod parser;
 mod error;
+mod constant;
 
 use eval_context::EvalContext;
 use eval::evaluate_input;
 use history_io::import_history;
-use meval::eval_str;
-use tui_handler::input_handler::InputHandler;
+use tui_handler::tui_handler::TuiHandler;
 use clap::Parser;
 use color_eyre::Result;
 use std::io::{self, Write};
+
 
 
 
@@ -44,15 +45,23 @@ fn main() -> Result<()> {
 
     // Direct eval mode: calcli -e "2 + 2"
     if let Some(expr) = args.eval {
-        let result = eval_str(&expr)?;
-        println!("{}", result);
-        return Ok(());
+        let mut eval_ctx = EvalContext::new();
+        match evaluate_input(&mut eval_ctx, &expr) {
+            Ok(result) => {
+                println!("{}", eval_ctx.format_result(result));
+                return Ok(());
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                return Ok(());
+            }
+        }
     }
 
     // TUI
     if args.tui {
         let mut terminal = ratatui::init();
-        let mut app = InputHandler::new();
+        let mut app = TuiHandler::new();
         if let Some(path) = &args.import {
             app.preload_history(path);
         }
@@ -126,7 +135,7 @@ fn main() -> Result<()> {
         match evaluate_input(&mut eval_ctx, &input) {
             Ok(result) => {
                 eval_ctx.history_entries.push((input.to_string(), result));
-                println!("{}) = {}", eval_ctx.counter, result);
+                println!("{}) = {}", eval_ctx.counter, eval_ctx.format_result(result));
                 eval_ctx.counter += 1;
             }
             Err(e) => {
