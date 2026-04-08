@@ -3,10 +3,9 @@ use crate::definition_handler::definition::assign_batch;
 use crate::error::EvalError;
 use meval::Expr;
 use crate::parser::format_variables;
-use fancy_regex::Regex;
 use crate::conversion_handler::scientific_notation::convert_to_scientific;
-use crate::{VARIABLE_SEPARATOR, escape_separator};
-
+use crate::VARIABLE_SEPARATOR;
+use crate::implicit_multiplication::insert_implicit_multiplication;
 
 //TODO: Finish Convertor Parser
 
@@ -126,10 +125,7 @@ pub fn evaluate_input(
     }
 
     // Detect bare assignment syntax like `x=5` or `x = 5`
-    let assign_regex = Regex::new(r"^([a-zA-Z][a-zA-Z0-9]*)\s*=\s*(.+)$").unwrap();
-    if let Ok(Some(caps)) = assign_regex.captures(&input) {
-        let var_name = caps.get(1).unwrap().as_str();
-        let expr = caps.get(2).unwrap().as_str();
+    if let Some((var_name, expr)) = parse_bare_assignment(&input) {
         return Err(EvalError::ParseError(
             format!("Did you mean: `let {} = {}`?", var_name, expr)
         ));
@@ -175,112 +171,151 @@ fn eval_expr(
     }
 }
 
+/// Parses bare assignment syntax like `x=5` or `var123 = expression`
+/// Returns Some((var_name, expression)) if it matches the pattern
+fn parse_bare_assignment(input: &str) -> Option<(String, String)> {
+    let input = input.trim();
+
+    // Find the '=' sign
+    let eq_pos = input.find('=')?;
+
+    // Extract parts
+    let lhs = input[..eq_pos].trim();
+    let rhs = input[eq_pos + 1..].trim();
+
+    // Check if rhs is empty
+    if rhs.is_empty() {
+        return None;
+    }
+
+    // Check if lhs matches the pattern: starts with letter, followed by letters/digits
+    if lhs.is_empty() {
+        return None;
+    }
+
+    let mut chars = lhs.chars();
+    let first = chars.next()?;
+
+    // First character must be a letter
+    if !first.is_ascii_alphabetic() {
+        return None;
+    }
+
+    // Remaining characters must be letters or digits
+    for ch in chars {
+        if !ch.is_alphanumeric() {
+            return None;
+        }
+    }
+
+    Some((lhs.to_string(), rhs.to_string()))
+}
+
 fn evaluate_function_calls(
     eval_ctx: &mut EvalContext,
     input: &str,
 ) -> Result<String, EvalError> {
     let mut result = input.to_string();
 
-    // Regex to match function calls: f(expression) or f_2(expression)
-    // This matches function_name(anything_inside_parens)
-    // Dynamically build regex with separator
-    let separator_escaped = escape_separator();
-    let pattern = format!(r"([a-z](?:{}?\d+)?)\(([^()]+)\)", separator_escaped);
-    let func_call_regex = Regex::new(&pattern).unwrap();
-
     // Keep replacing function calls until there are none left
     // This handles nested calls like f(g(5))
     loop {
-        let caps = match func_call_regex.captures(&result) {
-            Ok(Some(caps)) => caps,
-            Ok(None) => break, // No more function calls found
-            Err(_) => break,
-        };
+        // Find a function call: func_name(args) where func_name can be like f or f_2
+        let func_call = find_function_call(&result)?;
 
-        let full_match = caps.get(0).unwrap().as_str();
-        let func_name = caps.get(1).unwrap().as_str();
-        let arg = caps.get(2).unwrap().as_str();
+        match func_call {
+            None => break, // No more function calls found
+            Some((full_match_start, full_match_end, func_name, arg)) => {
+                // Check if this function is defined
+                if let Some(func) = eval_ctx.defined_funcs.get(&func_name).cloned() {
+                    // Evaluate the function with the argument
+                    let func_result = func.evaluate_func(eval_ctx, &arg)?;
 
-        // Check if this function is defined
-        if let Some(func) = eval_ctx.defined_funcs.get(func_name).cloned() {
-            // Evaluate the function with the argument
-            let func_result = func.evaluate_func(eval_ctx, arg)?;
-
-            // Replace the function call with the result
-            result = result.replace(full_match, &func_result.to_string());
-        } else {
-            // Not a user-defined function, could be a built-in like sin, cos, etc.
-            // Leave it as-is and continue
-            break;
+                    // Replace the function call with the result
+                    let replacement = func_result.to_string();
+                    result.replace_range(full_match_start..full_match_end, &replacement);
+                } else {
+                    // Not a user-defined function, could be a built-in like sin, cos, etc.
+                    // Leave it as-is and continue
+                    break;
+                }
+            }
         }
     }
 
     Ok(result)
 }
 
+/// Finds a function call in the input string
+/// Returns Some((start, end, func_name, arg)) or None
+fn find_function_call(input: &str) -> Result<Option<(usize, usize, String, String)>, EvalError> {
+    let chars: Vec<char> = input.chars().collect();
+    let mut i = 0;
 
-  fn insert_implicit_multiplication(input: &str) -> String {
-      let mut exempt_bracket = false;
-      let mut result = String::new();
-      let mut chars = input
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .peekable();
+    while i < chars.len() {
+        // Look for a lowercase letter at the start of a potential function name
+        if chars[i].is_ascii_lowercase() {
+            let func_start = i;
 
-      if chars.peek() == Some(&'.'){
-        result.push('0');
-        }
+            // Collect the function name (lowercase letter, optionally followed by separator and digits)
+            let mut func_name = String::new();
+            func_name.push(chars[i]);
+            i += 1;
 
-      while let Some(c) = chars.next() {
+            // Check for optional separator + digits (e.g., f_2)
+            if i < chars.len() && chars[i] == VARIABLE_SEPARATOR {
+                func_name.push(chars[i]);
+                i += 1;
 
-         if c == '[' {
-            // Add implicit multiplication before '[' if needed
-            if let Some(last) = result.chars().last() {
-                if last.is_ascii_digit() || last == ')' {
-                    result.push('*');
+                // Collect digits
+                let digit_start = i;
+                while i < chars.len() && chars[i].is_ascii_digit() {
+                    func_name.push(chars[i]);
+                    i += 1;
+                }
+
+                // If no digits after separator, it's not a valid function name
+                if i == digit_start {
+                    continue;
                 }
             }
-            result.push('[');
-            exempt_bracket = true;
-            continue;
-          }
 
-         if c ==']' {
-            result.push(']');
-            exempt_bracket = false;
-            // Add implicit multiplication after ']' if needed
-            if let Some(&next) = chars.peek(){
-                if next.is_alphanumeric() || next == '(' || next == '['{
-                result.push('*');
+            // Check if followed by '('
+            if i < chars.len() && chars[i] == '(' {
+                i += 1; // Skip '('
+
+                // Find the matching ')'
+                let arg_start = i;
+                let mut paren_count = 1;
+                let mut found_close = false;
+
+                while i < chars.len() {
+                    if chars[i] == '(' {
+                        paren_count += 1;
+                    } else if chars[i] == ')' {
+                        paren_count -= 1;
+                        if paren_count == 0 {
+                            found_close = true;
+                            break;
+                        }
+                    }
+                    i += 1;
+                }
+
+                if found_close {
+                    let arg: String = chars[arg_start..i].iter().collect();
+                    let full_match_end = i + 1; // Include the ')'
+
+                    return Ok(Some((func_start, full_match_end, func_name, arg)));
                 }
             }
-            continue;
+        } else {
+            i += 1;
         }
+    }
 
-        result.push(c);
-        if exempt_bracket {
-            continue;
-        }
+    Ok(None)
+}
 
-          if let Some(&next) = chars.peek() {
 
-            if (c.is_ascii_digit() || c == '.') && next.is_alphabetic() {
-                result.push('*');
-            }
 
-            if c.is_ascii_digit() && (next == '(' || next == '[') {
-                result.push('*');
-            }
-
-            if c == ')' && (next.is_alphanumeric() || next.is_ascii_digit() || next == '(' || next == '[') {
-                result.push('*');
-            }
-
-            if (!c.is_ascii_digit()) && (next == '.') {
-                result.push('0');
-            }
-          }
-      }
-
-      result
-  }

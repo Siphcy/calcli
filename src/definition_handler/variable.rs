@@ -37,9 +37,9 @@ pub fn valid_variable_name(var_name: &String) -> Result<(),DefError> {
 
             // All remaining characters must be digits
             while let Some(&ch) = chars.peek() {
-                if !ch.is_ascii_digit() {
+                if !ch.is_alphanumeric() {
                     return Err(DefError::InvalidDefinitionIteration(
-                        format!("Variable '{}' must be a single letter or letter followed by '{}' and digits (e.g., x, x{}2, y{}10)",
+                        format!("Variable '{}' must be a single letter or letter followed by '{}' and alphanumeric characters (e.g., x, x{}2, y{}10)",
                                 var_name, VARIABLE_SEPARATOR, VARIABLE_SEPARATOR, VARIABLE_SEPARATOR)
                     ).into());
                 }

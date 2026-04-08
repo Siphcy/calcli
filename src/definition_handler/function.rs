@@ -1,4 +1,3 @@
-use fancy_regex::Regex;
 use crate::error::EvalError;
 use crate::eval::evaluate_input;
 use crate::eval_context::EvalContext;
@@ -36,12 +35,10 @@ impl Function {
         // Format variables but exclude the function parameter (keep it in brackets)
         let new_expr = format_variables_with_exclusion(self.expr.to_string(), ctx, Some(self.var_name.as_ref()));
 
-        // Create a regex to match the specific variable in brackets (e.g., [x])
-        let pattern = format!(r"\[{}\]", self.var_name);
-        let var_regex = Regex::new(&pattern).unwrap();
-
         // Replace all instances of [var_name] with the evaluated value
-        let input = var_regex.replace_all(&new_expr, format!("({})", evaluated_value.to_string())).to_string();
+        let search_pattern = format!("[{}]", self.var_name);
+        let replacement = format!("({})", evaluated_value);
+        let input = new_expr.replace(&search_pattern, &replacement);
 
         // Evaluate the modified expression
         evaluate_input(ctx, &input)

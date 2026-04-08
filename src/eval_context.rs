@@ -14,8 +14,9 @@ pub struct EvalContext<'a> {
     pub recently_assigned: Vec<(String, String)>,
     pub sci_notation_enabled: bool,
     pub precision: usize,
-    pub digit_threshold: usize,  // Digit count threshold (e.g., 6 means 1000000+ or 0.000001-)
+    pub digit_threshold: usize,
 }
+
 impl<'a> EvalContext<'a> {
       pub fn new() -> Self {
 

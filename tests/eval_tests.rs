@@ -802,10 +802,10 @@ fn test_error_function_conflicts_with_variable() {
     let mut ctx = EvalContext::new();
 
     // Define a variable first
-    eval_with_ctx(&mut ctx, "let g = 5").unwrap();
+    eval_with_ctx(&mut ctx, "let p_53493249328920 = 5").unwrap();
 
     // Try to define a function with the same name
-    let result = eval_with_ctx(&mut ctx, "let g(x) = x^2");
+    let result = eval_with_ctx(&mut ctx, "let p_53493249328920(x) = x^2");
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("conflicts"));
 }
