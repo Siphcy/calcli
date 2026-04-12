@@ -4,11 +4,11 @@ use std::f64::consts::{E, PI};
 
 fn eval_test(input: &str) -> Result<f64, calcli::error::EvalError> {
     let mut ctx = EvalContext::new();
-    evaluate_input(&mut ctx, input)
+    evaluate_input(&mut ctx, input, true)
 }
 
 fn eval_with_ctx(ctx: &mut EvalContext, input: &str) -> Result<f64, calcli::error::EvalError> {
-    evaluate_input(ctx, input)
+    evaluate_input(ctx, input, true)
 }
 
 #[test]
@@ -713,6 +713,154 @@ fn test_batch_then_use_in_expressions() {
     assert_eq!(eval_with_ctx(&mut ctx, "x^2 + y^2 + z^2").unwrap(), 29.0); // 4+9+16
 }
 
+// ========== Greek Letter Tests ==========
+
+#[test]
+fn test_greek_letter_variables() {
+    let mut ctx = EvalContext::new();
+
+    // Test basic Greek letter variable assignment
+    assert_eq!(eval_with_ctx(&mut ctx, "let α = 5").unwrap(), 5.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "let β = 10").unwrap(), 10.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "let θ = 45").unwrap(), 45.0);
+
+    // Test retrieval
+    assert_eq!(eval_with_ctx(&mut ctx, "α").unwrap(), 5.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "β").unwrap(), 10.0);
+
+    // Test arithmetic with Greek letters
+    assert_eq!(eval_with_ctx(&mut ctx, "α + β").unwrap(), 15.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "β - α").unwrap(), 5.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "α * β").unwrap(), 50.0);
+}
+
+#[test]
+fn test_greek_letter_implicit_multiplication() {
+    let mut ctx = EvalContext::new();
+
+    eval_with_ctx(&mut ctx, "let α = 3").unwrap();
+    eval_with_ctx(&mut ctx, "let β = 4").unwrap();
+
+    // Test implicit multiplication with numbers
+    assert_eq!(eval_with_ctx(&mut ctx, "2α").unwrap(), 6.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "α2").unwrap(), 6.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "3β").unwrap(), 12.0);
+
+    // Test implicit multiplication between Greek letters
+    assert_eq!(eval_with_ctx(&mut ctx, "αβ").unwrap(), 12.0);
+
+    // Test with parentheses
+    assert_eq!(eval_with_ctx(&mut ctx, "(α)(β)").unwrap(), 12.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "2(α + β)").unwrap(), 14.0);
+}
+
+#[test]
+fn test_greek_letter_subscripts() {
+    let mut ctx = EvalContext::new();
+
+    // Test Greek letters with subscripts
+    assert_eq!(eval_with_ctx(&mut ctx, "let θ_1 = 45").unwrap(), 45.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "let θ_2 = 90").unwrap(), 90.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "let λ_10 = 550").unwrap(), 550.0);
+
+    // Test retrieval
+    assert_eq!(eval_with_ctx(&mut ctx, "θ_1").unwrap(), 45.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "θ_2").unwrap(), 90.0);
+
+    // Test arithmetic
+    assert_eq!(eval_with_ctx(&mut ctx, "θ_1 + θ_2").unwrap(), 135.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "2θ_1").unwrap(), 90.0);
+}
+
+#[test]
+fn test_mixed_ascii_greek() {
+    let mut ctx = EvalContext::new();
+
+    // Define both ASCII and Greek variables
+    eval_with_ctx(&mut ctx, "let x = 2").unwrap();
+    eval_with_ctx(&mut ctx, "let α = 3").unwrap();
+    eval_with_ctx(&mut ctx, "let y = 4").unwrap();
+    eval_with_ctx(&mut ctx, "let β = 5").unwrap();
+
+    // Test combinations
+    assert_eq!(eval_with_ctx(&mut ctx, "x + α").unwrap(), 5.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "xα").unwrap(), 6.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "xyαβ").unwrap(), 120.0); // 2*4*3*5
+    assert_eq!(eval_with_ctx(&mut ctx, "x + y + α + β").unwrap(), 14.0);
+}
+
+#[test]
+fn test_greek_in_functions() {
+    let mut ctx = EvalContext::new();
+
+    // Test Greek letters in mathematical functions
+    eval_with_ctx(&mut ctx, "let θ = 0").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "sin(θ)").unwrap(), 0.0);
+
+    // Test with π (already a constant)
+    let result = eval_with_ctx(&mut ctx, "sin(π/2)").unwrap();
+    assert!((result - 1.0).abs() < 1e-10);
+
+    // Test with expressions
+    eval_with_ctx(&mut ctx, "let α = 1").unwrap();
+    let result = eval_with_ctx(&mut ctx, "ln(α)").unwrap();
+    assert!(result.abs() < 1e-10); // ln(1) = 0
+}
+
+#[test]
+fn test_greek_user_defined_functions() {
+    let mut ctx = EvalContext::new();
+
+    // Define function with Greek parameter
+    eval_with_ctx(&mut ctx, "let f(α) = α^2").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "f(5)").unwrap(), 25.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "f(3)").unwrap(), 9.0);
+
+    // Define function with Greek name (single letter)
+    eval_with_ctx(&mut ctx, "let φ(x) = 2x + 1").unwrap();
+    assert_eq!(eval_with_ctx(&mut ctx, "φ(3)").unwrap(), 7.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "φ(0)").unwrap(), 1.0);
+}
+
+#[test]
+fn test_greek_complex_expressions() {
+    let mut ctx = EvalContext::new();
+
+    eval_with_ctx(&mut ctx, "let α = 2").unwrap();
+    eval_with_ctx(&mut ctx, "let β = 3").unwrap();
+
+    // Test complex expressions
+    assert_eq!(eval_with_ctx(&mut ctx, "α^2 + β^2").unwrap(), 13.0); // 4 + 9
+    assert_eq!(eval_with_ctx(&mut ctx, "(α + β)(α - β)").unwrap(), -5.0); // 5 * -1
+    assert_eq!(eval_with_ctx(&mut ctx, "2α + 3β").unwrap(), 13.0); // 4 + 9
+}
+
+#[test]
+fn test_greek_uppercase_letters() {
+    let mut ctx = EvalContext::new();
+
+    // Test uppercase Greek letters
+    assert_eq!(eval_with_ctx(&mut ctx, "let Δ = 10").unwrap(), 10.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "let Σ = 20").unwrap(), 20.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "let Ω = 30").unwrap(), 30.0);
+
+    assert_eq!(eval_with_ctx(&mut ctx, "Δ + Σ").unwrap(), 30.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "2Ω").unwrap(), 60.0);
+}
+
+#[test]
+fn test_greek_with_line_references() {
+    let mut ctx = EvalContext::new();
+
+    // First calculation with Greek
+    eval_with_ctx(&mut ctx, "let α = 5").unwrap();
+    eval_with_ctx(&mut ctx, "2α").unwrap(); // lin_2 = 10
+
+    // Reference the line
+    assert_eq!(eval_with_ctx(&mut ctx, "lin_2").unwrap(), 10.0);
+    assert_eq!(eval_with_ctx(&mut ctx, "lin_2 + α").unwrap(), 15.0);
+}
+
 // ========== Error Handling Tests ==========
 
 #[test]
@@ -975,4 +1123,41 @@ fn test_constant_function() {
 
     let result = eval_with_ctx(&mut ctx, "f(3)").unwrap();
     assert_eq!(result, 9.0, "f(3) should equal 9");
+}
+
+#[test]
+fn test_r_degree_to_radian() {
+    use std::f64::consts::PI;
+    let mut ctx = EvalContext::new();
+
+    // Test r(180) should give π
+    let result = eval_with_ctx(&mut ctx, "r(180)").unwrap();
+    assert!((result - PI).abs() < 1e-10, "r(180) should equal π, got {}", result);
+
+    // Test r(90) should give π/2
+    let result = eval_with_ctx(&mut ctx, "r(90)").unwrap();
+    assert!((result - PI / 2.0).abs() < 1e-10, "r(90) should equal π/2, got {}", result);
+
+    // Test r(0) should give 0
+    let result = eval_with_ctx(&mut ctx, "r(0)").unwrap();
+    assert!(result.abs() < 1e-10, "r(0) should equal 0, got {}", result);
+}
+
+#[test]
+fn test_function_with_concatenated_param_and_variable() {
+    use std::f64::consts::PI;
+    use calcli::definition_handler::function::Function;
+
+    let mut ctx = EvalContext::new();
+
+    // Define h with no space between x and pi: h(x) = xpi/180
+    let h_nospace = Function::new("h".to_string(), "x".to_string(), "xpi/180".to_string());
+    ctx.defined_funcs.insert("h".to_string(), h_nospace);
+
+    // Test h(180) should give π (if xpi parsing works correctly)
+    let result = eval_with_ctx(&mut ctx, "h(180)");
+    match result {
+        Ok(val) => assert!((val - PI).abs() < 1e-10, "h(180) should equal π, got {}", val),
+        Err(e) => panic!("h(180) failed with expression 'xpi/180': {}", e),
+    }
 }

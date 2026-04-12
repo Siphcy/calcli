@@ -36,7 +36,7 @@ pub fn parse_variable_definition(
     }
 
     // Evaluate the value expression
-    let parsed_value = evaluate_input(eval_ctx, &value).map_err(|e| {
+    let parsed_value = evaluate_input(eval_ctx, &value, true).map_err(|e| {
         DefError::InvalidDefinitionSyntax(
             format!("Cannot evaluate value for '{}': {}", name, e)
         )

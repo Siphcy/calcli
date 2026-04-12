@@ -13,8 +13,8 @@ pub fn valid_variable_name(var_name: &String) -> Result<(),DefError> {
         .filter(|c| !c.is_whitespace())
         .peekable();
 
-    // Single letter is valid
-    if var_name.len() == 1 {
+    // Single letter is valid (count characters, not bytes for Unicode support)
+    if var_name.chars().count() == 1 {
         return Ok(());
     }
 

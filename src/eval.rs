@@ -12,6 +12,7 @@ use crate::implicit_multiplication::insert_implicit_multiplication;
 pub fn evaluate_input(
     eval_ctx: &mut EvalContext,
     init_input: &str,
+    evaluate_new_line: bool,
 ) -> Result<f64, EvalError> {
     // Inits input
     let input: String = init_input.trim().to_string();
@@ -111,7 +112,7 @@ pub fn evaluate_input(
         }
 
         // Try to evaluate as an expression (e.g., "sci lin1" or "sci 2+3")
-        match eval_expr(eval_ctx, arg) {
+        match eval_expr(eval_ctx, arg, evaluate_new_line) {
             Ok(num) => {
                 let result = convert_to_scientific(num, eval_ctx.precision);
                 return Err(EvalError::ParseError(result));
@@ -120,6 +121,7 @@ pub fn evaluate_input(
                 return Err(EvalError::ParseError(
                     "Usage: sci <number>, sci <expression>, or sci toggle".to_string()
                 ));
+
             }
         }
     }
@@ -131,12 +133,13 @@ pub fn evaluate_input(
         ));
     }
 
-    eval_expr(eval_ctx, &input)
+    eval_expr(eval_ctx, &input, evaluate_new_line)
 }
 
 fn eval_expr(
     eval_ctx: &mut EvalContext,
     init_input: &str,
+    evaluate_new_line: bool,
 ) -> Result<f64, EvalError> {
     let mut input: String = init_input.to_string();
 
@@ -144,25 +147,28 @@ fn eval_expr(
         return Err(EvalError::EmptyInput);
     }
 
+    input = format_variables(input, eval_ctx);
     // Evaluate function calls before processing variables
     input = evaluate_function_calls(eval_ctx, &input)?;
 
-    let input = format_variables(input, eval_ctx);
 
 
     let input: &str = &insert_implicit_multiplication(&input);
+
+    // Substitute non-ASCII variables with their values (meval doesn't support Unicode var names)
+    let input = substitute_non_ascii_vars(&input, eval_ctx);
 
     // Convert brackets to parentheses for meval (which only supports parentheses)
     let input = input.replace('[', "(").replace(']', ")");
 
     match input.parse::<Expr>().and_then(|e| e.eval_with_context(&eval_ctx.ctx)) {
         Ok(result) => {
-
+        if evaluate_new_line == true {
             eval_ctx.counter += 1;
             let line_name = format!("lin{}{}",VARIABLE_SEPARATOR, eval_ctx.counter);
             eval_ctx.ctx.var(&line_name, result);
             eval_ctx.defined_vars.insert(line_name, result);
-
+            }
             Ok(result)
         }
         Err(e) => {
@@ -196,14 +202,12 @@ fn parse_bare_assignment(input: &str) -> Option<(String, String)> {
     let mut chars = lhs.chars();
     let first = chars.next()?;
 
-    // First character must be a letter
-    if !first.is_ascii_alphabetic() {
+    if first.is_ascii_digit() {
         return None;
     }
 
-    // Remaining characters must be letters or digits
     for ch in chars {
-        if !ch.is_alphanumeric() {
+        if !ch.is_ascii_digit() {
             return None;
         }
     }
@@ -251,13 +255,11 @@ fn evaluate_function_calls(
 fn find_function_call(input: &str) -> Result<Option<(usize, usize, String, String)>, EvalError> {
     let chars: Vec<char> = input.chars().collect();
     let mut i = 0;
-
     while i < chars.len() {
-        // Look for a lowercase letter at the start of a potential function name
-        if chars[i].is_ascii_lowercase() {
+        if chars[i] == '[' && Some(chars[i+1].is_ascii() || !chars[i+1].is_ascii_digit()).is_some() {
+            i += 1;
             let func_start = i;
 
-            // Collect the function name (lowercase letter, optionally followed by separator and digits)
             let mut func_name = String::new();
             func_name.push(chars[i]);
             i += 1;
@@ -267,15 +269,15 @@ fn find_function_call(input: &str) -> Result<Option<(usize, usize, String, Strin
                 func_name.push(chars[i]);
                 i += 1;
 
-                // Collect digits
-                let digit_start = i;
-                while i < chars.len() && chars[i].is_ascii_digit() {
+                // Collect subscript
+                let subscript_start = i;
+                while i < chars.len() && chars[i].is_ascii() {
                     func_name.push(chars[i]);
                     i += 1;
                 }
 
-                // If no digits after separator, it's not a valid function name
-                if i == digit_start {
+                // If no subscript after separator, it's not a valid function name
+                if i == subscript_start {
                     continue;
                 }
             }
@@ -304,9 +306,12 @@ fn find_function_call(input: &str) -> Result<Option<(usize, usize, String, Strin
 
                 if found_close {
                     let arg: String = chars[arg_start..i].iter().collect();
-                    let full_match_end = i + 1; // Include the ')'
 
-                    return Ok(Some((func_start, full_match_end, func_name, arg)));
+                    // Convert character indices to byte indices for UTF-8 safety
+                    let byte_start = chars[..func_start-1].iter().map(|c| c.len_utf8()).sum();
+                    let byte_end = chars[..=i+1].iter().map(|c| c.len_utf8()).sum();
+
+                    return Ok(Some((byte_start, byte_end, func_name, arg)));
                 }
             }
         } else {
@@ -317,5 +322,67 @@ fn find_function_call(input: &str) -> Result<Option<(usize, usize, String, Strin
     Ok(None)
 }
 
+/// Substitutes non-ASCII variables with their values
+/// meval doesn't support Unicode variable names, so we pre-substitute them
+fn substitute_non_ascii_vars(input: &str, eval_ctx: &EvalContext) -> String {
+    let mut result = String::new();
+    let chars: Vec<char> = input.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        if chars[i] == '[' {
+            // Found a bracket, need to match it properly (handle nested brackets)
+            let _bracket_start = i;
+            i += 1;
+            let var_start = i;
+
+            // Track bracket depth to handle nested brackets like [sin([θ])]
+            let mut bracket_depth = 1;
+            while i < chars.len() && bracket_depth > 0 {
+                if chars[i] == '[' {
+                    bracket_depth += 1;
+                } else if chars[i] == ']' {
+                    bracket_depth -= 1;
+                }
+                if bracket_depth > 0 {
+                    i += 1;
+                }
+            }
+
+            if i < chars.len() && chars[i] == ']' {
+                let var_name: String = chars[var_start..i].iter().collect();
+
+                // Check if this is a simple variable (no nested brackets or other complex expressions)
+                let is_simple_var = !var_name.contains('[') && !var_name.contains('(');
+
+                // Check if variable name contains non-ASCII characters and is a simple variable
+                if is_simple_var && var_name.chars().any(|c| !c.is_ascii()) {
+                    // Look up the value
+                    if let Some(&value) = eval_ctx.defined_vars.get(&var_name) {
+                        // Substitute with the value
+                        result.push_str(&value.to_string());
+                        i += 1; // Skip the closing bracket
+                        continue;
+                    }
+                }
+
+                // Complex expression or ASCII variable - recursively process the content
+                let processed_content = substitute_non_ascii_vars(&var_name, eval_ctx);
+                result.push('[');
+                result.push_str(&processed_content);
+                result.push(']');
+                i += 1;
+            } else {
+                // No closing bracket found, keep the opening bracket
+                result.push('[');
+            }
+        } else {
+            result.push(chars[i]);
+            i += 1;
+        }
+    }
+
+    result
+}
 
 

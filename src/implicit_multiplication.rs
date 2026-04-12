@@ -1,6 +1,6 @@
 
 pub fn insert_implicit_multiplication(input: &str) -> String {
-      let mut exempt_bracket = false;
+      let mut exempt_bracket_depth = 0;
       let mut result = String::new();
       let mut chars = input
         .chars()
@@ -21,16 +21,16 @@ pub fn insert_implicit_multiplication(input: &str) -> String {
                 }
             }
             result.push('[');
-            exempt_bracket = true;
+            exempt_bracket_depth += 1;
             continue;
           }
 
          if c ==']' {
             result.push(']');
-            exempt_bracket = false;
+            exempt_bracket_depth -= 1;
             // Add implicit multiplication after ']' if needed
             if let Some(&next) = chars.peek(){
-                if next.is_alphanumeric() || next == '(' || next == '['{
+                if next.is_alphanumeric() || !next.is_ascii() || next == '(' || next == '[' || next == '.'{
                 result.push('*');
                 }
             }
@@ -38,13 +38,13 @@ pub fn insert_implicit_multiplication(input: &str) -> String {
         }
 
         result.push(c);
-        if exempt_bracket {
+        if exempt_bracket_depth > 0 {
             continue;
         }
 
           if let Some(&next) = chars.peek() {
 
-            if (c.is_ascii_digit() || c == '.') && next.is_alphabetic() {
+            if (c.is_ascii_digit() || c == '.') && (next.is_alphabetic() || !next.is_ascii()) {
                 result.push('*');
             }
 
@@ -52,7 +52,7 @@ pub fn insert_implicit_multiplication(input: &str) -> String {
                 result.push('*');
             }
 
-            if c == ')' && (next.is_alphanumeric() || next.is_ascii_digit() || next == '(' || next == '[') {
+            if c == ')' && (next.is_alphanumeric() || !next.is_ascii() || next == '(' || next == '[' || next == '.') {
                 result.push('*');
             }
 

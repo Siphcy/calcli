@@ -129,7 +129,7 @@ fn test_format_number_disabled() {
 #[test]
 fn test_automatic_formatting_large_numbers() {
     let mut ctx = EvalContext::new();
-    let result = evaluate_input(&mut ctx, "10000000").unwrap();
+    let result = evaluate_input(&mut ctx, "10000000", true).unwrap();
     assert_eq!(result, 10_000_000.0);
     assert_eq!(ctx.format_result(result), "1.00000e+7");
 }
@@ -137,7 +137,7 @@ fn test_automatic_formatting_large_numbers() {
 #[test]
 fn test_automatic_formatting_small_numbers() {
     let mut ctx = EvalContext::new();
-    let result = evaluate_input(&mut ctx, "0.0000001").unwrap();
+    let result = evaluate_input(&mut ctx, "0.0000001", true).unwrap();
     assert_eq!(result, 0.0000001);
     assert_eq!(ctx.format_result(result), "1.00000e-7");
 }
@@ -145,7 +145,7 @@ fn test_automatic_formatting_small_numbers() {
 #[test]
 fn test_automatic_formatting_normal_numbers() {
     let mut ctx = EvalContext::new();
-    let result = evaluate_input(&mut ctx, "123.456").unwrap();
+    let result = evaluate_input(&mut ctx, "123.456", true).unwrap();
     assert_eq!(result, 123.456);
     assert_eq!(ctx.format_result(result), "123.456");
 }
@@ -158,13 +158,13 @@ fn test_sci_toggle_command() {
     assert!(ctx.sci_notation_enabled);
 
     // Toggle off
-    let result = evaluate_input(&mut ctx, "sci toggle");
+    let result = evaluate_input(&mut ctx, "sci toggle", true);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), "Parse error: Scientific notation disabled");
     assert!(!ctx.sci_notation_enabled);
 
     // Toggle on
-    let result = evaluate_input(&mut ctx, "sci toggle");
+    let result = evaluate_input(&mut ctx, "sci toggle", true);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), "Parse error: Scientific notation enabled");
     assert!(ctx.sci_notation_enabled);
@@ -173,13 +173,13 @@ fn test_sci_toggle_command() {
 #[test]
 fn test_sci_toggle_affects_formatting() {
     let mut ctx = EvalContext::new();
-    let result = evaluate_input(&mut ctx, "10000000").unwrap();
+    let result = evaluate_input(&mut ctx, "10000000", true).unwrap();
 
     // Enabled: should use scientific notation
     assert_eq!(ctx.format_result(result), "1.00000e+7");
 
     // Toggle off
-    evaluate_input(&mut ctx, "sci toggle").ok();
+    evaluate_input(&mut ctx, "sci toggle", true).ok();
     assert_eq!(ctx.format_result(result), "10000000");
 }
 
@@ -191,13 +191,13 @@ fn test_precision_command() {
     assert_eq!(ctx.precision, 6);
 
     // Set to 3
-    let result = evaluate_input(&mut ctx, "precision 3");
+    let result = evaluate_input(&mut ctx, "precision 3", true);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), "Parse error: Precision set to 3 significant figures");
     assert_eq!(ctx.precision, 3);
 
     // Set to 10
-    let result = evaluate_input(&mut ctx, "precision 10");
+    let result = evaluate_input(&mut ctx, "precision 10", true);
     assert!(result.is_err());
     assert_eq!(ctx.precision, 10);
 }
@@ -205,17 +205,17 @@ fn test_precision_command() {
 #[test]
 fn test_precision_affects_output() {
     let mut ctx = EvalContext::new();
-    let result = evaluate_input(&mut ctx, "1234567").unwrap();
+    let result = evaluate_input(&mut ctx, "1234567", true).unwrap();
 
     // Default precision (6)
     assert_eq!(ctx.format_result(result), "1.23457e+6");
 
     // Change to 3
-    evaluate_input(&mut ctx, "precision 3").ok();
+    evaluate_input(&mut ctx, "precision 3", true).ok();
     assert_eq!(ctx.format_result(result), "1.23e+6");
 
     // Change to 10
-    evaluate_input(&mut ctx, "precision 10").ok();
+    evaluate_input(&mut ctx, "precision 10", true).ok();
     assert_eq!(ctx.format_result(result), "1.234567000e+6");
 }
 
@@ -224,17 +224,17 @@ fn test_precision_validation() {
     let mut ctx = EvalContext::new();
 
     // Too low
-    let result = evaluate_input(&mut ctx, "precision 0");
+    let result = evaluate_input(&mut ctx, "precision 0", true);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), "Parse error: Precision must be between 1 and 15");
 
     // Too high
-    let result = evaluate_input(&mut ctx, "precision 20");
+    let result = evaluate_input(&mut ctx, "precision 20", true);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), "Parse error: Precision must be between 1 and 15");
 
     // Invalid input
-    let result = evaluate_input(&mut ctx, "precision abc");
+    let result = evaluate_input(&mut ctx, "precision abc", true);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), "Parse error: Usage: precision <number>  (e.g., precision 6)");
 }
@@ -243,7 +243,7 @@ fn test_precision_validation() {
 fn test_sci_convert_number() {
     let mut ctx = EvalContext::new();
 
-    let result = evaluate_input(&mut ctx, "sci 42");
+    let result = evaluate_input(&mut ctx, "sci 42", true);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), "Parse error: 4.20000e+1");
 }
@@ -252,7 +252,7 @@ fn test_sci_convert_number() {
 fn test_sci_convert_expression() {
     let mut ctx = EvalContext::new();
 
-    let result = evaluate_input(&mut ctx, "sci 2+3");
+    let result = evaluate_input(&mut ctx, "sci 2+3", true);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), "Parse error: 5.00000e+0");
 }
@@ -262,10 +262,10 @@ fn test_sci_convert_line_reference() {
     let mut ctx = EvalContext::new();
 
     // Create a result
-    evaluate_input(&mut ctx, "123.456").unwrap();
+    evaluate_input(&mut ctx, "123.456", true).unwrap();
 
     // Convert it
-    let result = evaluate_input(&mut ctx, "sci lin_1");
+    let result = evaluate_input(&mut ctx, "sci lin_1", true);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), "Parse error: 1.23456e+2");
 }
@@ -275,10 +275,10 @@ fn test_sci_convert_with_custom_precision() {
     let mut ctx = EvalContext::new();
 
     // Set precision to 3
-    evaluate_input(&mut ctx, "precision 3").ok();
+    evaluate_input(&mut ctx, "precision 3", true).ok();
 
     // Convert number
-    let result = evaluate_input(&mut ctx, "sci 1234567");
+    let result = evaluate_input(&mut ctx, "sci 1234567", true);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), "Parse error: 1.23e+6");
 }
@@ -288,11 +288,11 @@ fn test_line_reference_with_sci_notation() {
     let mut ctx = EvalContext::new();
 
     // Large number stored in lin_1
-    let result1 = evaluate_input(&mut ctx, "10000000").unwrap();
+    let result1 = evaluate_input(&mut ctx, "10000000", true).unwrap();
     assert_eq!(result1, 10_000_000.0);
 
     // Use lin_1 in calculation
-    let result2 = evaluate_input(&mut ctx, "lin_1 * 2").unwrap();
+    let result2 = evaluate_input(&mut ctx, "lin_1 * 2", true).unwrap();
     assert_eq!(result2, 20_000_000.0);
     assert_eq!(ctx.format_result(result2), "2.00000e+7");
 }
@@ -302,12 +302,12 @@ fn test_calculations_with_sci_numbers() {
     let mut ctx = EvalContext::new();
 
     // Calculate with large numbers
-    let result = evaluate_input(&mut ctx, "1000000 + 2000000").unwrap();
+    let result = evaluate_input(&mut ctx, "1000000 + 2000000", true).unwrap();
     assert_eq!(result, 3_000_000.0);
     assert_eq!(ctx.format_result(result), "3.00000e+6");
 
     // Calculate with small numbers
-    let result = evaluate_input(&mut ctx, "0.0000001 * 2").unwrap();
+    let result = evaluate_input(&mut ctx, "0.0000001 * 2", true).unwrap();
     assert_eq!(result, 0.0000002);
     assert_eq!(ctx.format_result(result), "2.00000e-7");
 }
@@ -325,10 +325,10 @@ fn test_default_settings() {
 fn test_negative_numbers_formatting() {
     let mut ctx = EvalContext::new();
 
-    let result = evaluate_input(&mut ctx, "-10000000").unwrap();
+    let result = evaluate_input(&mut ctx, "-10000000", true).unwrap();
     assert_eq!(ctx.format_result(result), "-1.00000e+7");
 
-    let result = evaluate_input(&mut ctx, "-0.0000001").unwrap();
+    let result = evaluate_input(&mut ctx, "-0.0000001", true).unwrap();
     assert_eq!(ctx.format_result(result), "-1.00000e-7");
 }
 
@@ -336,10 +336,10 @@ fn test_negative_numbers_formatting() {
 fn test_zero_formatting() {
     let mut ctx = EvalContext::new();
 
-    let result = evaluate_input(&mut ctx, "0").unwrap();
+    let result = evaluate_input(&mut ctx, "0", true).unwrap();
     assert_eq!(ctx.format_result(result), "0");
 
-    let result = evaluate_input(&mut ctx, "10 - 10").unwrap();
+    let result = evaluate_input(&mut ctx, "10 - 10", true).unwrap();
     assert_eq!(ctx.format_result(result), "0");
 }
 
@@ -349,26 +349,26 @@ fn test_boundary_values() {
 
     // Threshold is 6 (triggers on 6+ digits)
     // 1,000,000 has 7 digits (should use sci notation)
-    let result = evaluate_input(&mut ctx, "1000000").unwrap();
+    let result = evaluate_input(&mut ctx, "1000000", true).unwrap();
     assert_eq!(ctx.format_result(result), "1.00000e+6");
 
     // 100,000 has 6 digits (should use sci notation)
-    let result = evaluate_input(&mut ctx, "100000").unwrap();
+    let result = evaluate_input(&mut ctx, "100000", true).unwrap();
     assert_eq!(ctx.format_result(result), "1.00000e+5");
 
     // 99,999 has 5 digits (should not use sci notation)
-    let result = evaluate_input(&mut ctx, "99999").unwrap();
+    let result = evaluate_input(&mut ctx, "99999", true).unwrap();
     assert_eq!(ctx.format_result(result), "99999");
 
     // 0.0000001 has 7 leading zeros (should use sci notation)
-    let result = evaluate_input(&mut ctx, "0.0000001").unwrap();
+    let result = evaluate_input(&mut ctx, "0.0000001", true).unwrap();
     assert_eq!(ctx.format_result(result), "1.00000e-7");
 
     // 0.000001 has 6 leading zeros (should use sci notation)
-    let result = evaluate_input(&mut ctx, "0.000001").unwrap();
+    let result = evaluate_input(&mut ctx, "0.000001", true).unwrap();
     assert_eq!(ctx.format_result(result), "1.00000e-6");
 
     // 0.00001 has 5 leading zeros (should not use sci notation)
-    let result = evaluate_input(&mut ctx, "0.00001").unwrap();
+    let result = evaluate_input(&mut ctx, "0.00001", true).unwrap();
     assert_eq!(ctx.format_result(result), "0.00001");
 }
