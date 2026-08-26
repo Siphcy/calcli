@@ -110,7 +110,7 @@ fn parse_function_syntax(name: &str) -> Result<(String, String), EvalError> {
     Ok((func_name.to_string(), var_name.to_string()))
 }
 
-/// Checks if an identifier matches the pattern: lowercase letter optionally followed by separator + digits
+/// Checks if an identifier matches the pattern: letter optionally followed by separator + digits
 fn is_valid_identifier(s: &str) -> bool {
     if s.is_empty() {
         return false;
@@ -118,8 +118,8 @@ fn is_valid_identifier(s: &str) -> bool {
 
     let chars: Vec<char> = s.chars().collect();
 
-    // First character must be a lowercase letter
-    if !chars[0].is_ascii_lowercase() {
+    // First character must be a letter (supports Unicode Greek letters)
+    if !chars[0].is_alphabetic() {
         return false;
     }
 
@@ -133,14 +133,14 @@ fn is_valid_identifier(s: &str) -> bool {
         return false;
     }
 
-    // If we have a separator, we must have at least one digit after it
+    // If we have a separator, we must have at least one character after it
     if chars.len() == 2 {
         return false;
     }
 
-    // All remaining characters must be alphanumeric
+    // All remaining characters must be alphanumeric (supports Unicode)
     for i in 2..chars.len() {
-        if !chars[i].is_alphanumeric() {
+        if !chars[i].is_alphabetic() && !chars[i].is_numeric() {
             return false;
         }
     }

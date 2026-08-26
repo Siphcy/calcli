@@ -8,6 +8,7 @@ mod parser;
 mod error;
 mod constant;
 mod implicit_multiplication;
+mod input_handler;
 
 // Variable name separator for numbered variables
 // e.g., with VARIABLE_SEPARATOR = '_':
@@ -53,7 +54,7 @@ fn main() -> Result<()> {
     // Direct eval mode: calcli -e "2 + 2"
     if let Some(expr) = args.eval {
         let mut eval_ctx = EvalContext::new();
-        match evaluate_input(&mut eval_ctx, &expr) {
+        match evaluate_input(&mut eval_ctx, &expr, false) {
             Ok(result) => {
                 println!("{}", eval_ctx.format_result(result));
                 return Ok(());
@@ -85,7 +86,7 @@ fn main() -> Result<()> {
         match import_history(path) {
             Ok(entries) => {
                 for entry in entries {
-                    match evaluate_input(&mut eval_ctx, &entry.expression) {
+                    match evaluate_input(&mut eval_ctx, &entry.expression, false) {
                         Ok(result) => {
                             println!("{}) {} = {}", eval_ctx.counter, entry.expression.trim(), result);
                             eval_ctx.history_entries.push((entry.expression, result));
@@ -123,7 +124,7 @@ fn main() -> Result<()> {
             match import_history(path.trim()) {
                 Ok(entries) => {
                     for entry in entries {
-                        match evaluate_input(&mut eval_ctx, &entry.expression) {
+                        match evaluate_input(&mut eval_ctx, &entry.expression, false) {
                             Ok(result) => {
                                 println!("{}) {} = {}", eval_ctx.counter, entry.expression.trim(), result);
                                 eval_ctx.history_entries.push((entry.expression, result));
@@ -139,11 +140,10 @@ fn main() -> Result<()> {
             continue;
         }
 
-        match evaluate_input(&mut eval_ctx, &input) {
+        match evaluate_input(&mut eval_ctx, &input, true) {
             Ok(result) => {
                 eval_ctx.history_entries.push((input.to_string(), result));
                 println!("{}) = {}", eval_ctx.counter, eval_ctx.format_result(result));
-                eval_ctx.counter += 1;
             }
             Err(e) => {
                 eprintln!("{}", e);

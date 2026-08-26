@@ -1,6 +1,7 @@
 #[allow(dead_code)]
 use super::vi_inputs::History;
 use crate::history_io::{export_history, import_history};
+use crate::input_handler::InputFormat;
 use color_eyre::Result;
 use crate::eval::evaluate_input;
 use crate::eval_context::EvalContext;
@@ -17,8 +18,7 @@ use super::selection::TuiSelectionMap;
 
 
 pub struct TuiHandler<'a> {
-    input: String,
-    character_index: usize,
+    input_handler: InputFormat,
     input_mode: InputMode,
     results: Vec<String>,
     eval_ctx: EvalContext<'a>,
@@ -39,12 +39,11 @@ pub enum InputMode {
 impl<'a> TuiHandler<'a> {
     pub fn new() -> Self {
         Self {
-            input: String::new(),
+            input_handler: InputFormat::new(),
             input_mode: InputMode::Normal,
             results: Vec::new(),
             eval_ctx: EvalContext::new(),
             history: History::new(),
-            character_index: 0,
             results_state: ListState::default(),
             variables_state: TableState::default(),
             functions_state: TableState::default(),
@@ -53,155 +52,29 @@ impl<'a> TuiHandler<'a> {
         }
     }
 
-    fn move_cursor_left(&mut self) {
-        let cursor_moved_left = self.character_index.saturating_sub(1);
-        self.character_index = self.clamp_cursor(cursor_moved_left);
-    }
-
-    fn move_cursor_right(&mut self) {
-        let cursor_moved_right = self.character_index.saturating_add(1);
-        self.character_index = self.clamp_cursor(cursor_moved_right);
-    }
-
-    fn is_word_boundary(c: char) -> bool {
-        c.is_whitespace() || "+-*/^%()[]{}.,=<>!&|".contains(c)
-    }
-
-    fn is_word_char(c: char) -> bool {
-        c.is_alphanumeric() || c == '_'
-    }
-
-    fn move_to_end_of_word(&mut self) {
-        let chars: Vec<char> = self.input.chars().collect();
-        if chars.is_empty() {
-            return;
-        }
-
-        let mut pos = self.character_index;
-
-        // If we're at the end already, do nothing
-        if pos >= chars.len() - 1 {
-            self.character_index = chars.len() - 1;
-            return;
-        }
-
-        // Skip current character to start moving
-        pos += 1;
-
-        // Skip any boundaries/whitespace
-        while pos < chars.len() && Self::is_word_boundary(chars[pos]) {
-            pos += 1;
-        }
-
-        // Move to end of the word
-        while pos < chars.len() && Self::is_word_char(chars[pos]) {
-            pos += 1;
-        }
-
-        // Back up one to land on last character of word
-        if pos > 0 {
-            pos -= 1;
-        }
-
-        self.character_index = pos.min(chars.len() - 1);
-    }
-
-
-    fn move_to_beginning_of_word(&mut self) {
-        let chars: Vec<char> = self.input.chars().collect();
-        if chars.is_empty() || self.character_index == 0 {
-            return;
-        }
-
-        let mut pos = self.character_index;
-
-        // Move back one to start
-        pos = pos.saturating_sub(1);
-
-        // Skip boundaries/whitespace backwards
-        while pos > 0 && Self::is_word_boundary(chars[pos]) {
-            pos -= 1;
-        }
-
-        // Move to start of word
-        while pos > 0 && Self::is_word_char(chars[pos - 1]) {
-            pos -= 1;
-        }
-
-        self.character_index = pos;
-    }
-
 
     // History Handling
     fn add_to_history(&mut self) {
-        self.history.add(&self.input);
+        self.history.add(&self.input_handler.input().to_string());
     }
 
     fn get_previous_history(&mut self) {
-        self.input.clear();
         if let Some(previous) = self.history.get_previous() {
-            self.input = previous.to_string();
-            self.character_index = previous.len();
+            self.input_handler.set_input(previous.to_string());
+        } else {
+            self.input_handler.clear();
         }
     }
 
     fn get_next_history(&mut self) {
-
-        self.input.clear();
         if let Some(next) = self.history.get_next() {
-            self.input = next.to_string();
-            self.character_index = next.len();
-        } else
-        {
-            self.character_index = 0;
+            self.input_handler.set_input(next.to_string());
+        } else {
+            self.input_handler.clear();
         }
     }
 
 
-   fn enter_char(&mut self, new_char: char) {
-        let index = self.byte_index();
-        self.input.insert(index, new_char);
-        self.move_cursor_right();
-    }
-
-   fn delete_char_indexed(&mut self) {
-
-    let index = self.byte_index();
-    if self.input.char_indices().map(|(i, _)| i).nth(index) != None {
-        self.input.remove(index);
-
-        }
-            }
-
-    fn byte_index(&self) -> usize {
-        self.input
-            .char_indices()
-            .map(|(i, _)| i)
-            .nth(self.character_index)
-            .unwrap_or(self.input.len())
-    }
-
-    fn delete_char(&mut self) {
-        let is_not_cursor_leftmost = self.character_index != 0;
-        if is_not_cursor_leftmost {
-            let current_index = self.character_index;
-            let from_left_to_current_index = current_index - 1;
-
-            let before_char_to_delete = self.input.chars().take(from_left_to_current_index);
-            let after_char_to_delete = self.input.chars().skip(current_index);
-
-            self.input = before_char_to_delete.chain(after_char_to_delete).collect();
-            self.move_cursor_left();
-        }
-    }
-
-    fn clamp_cursor(&self, new_cursor_pos: usize) -> usize {
-        new_cursor_pos.clamp(0, self.input.chars().count())
-    }
-
-    fn reset_cursor(&mut self) {
-        self.character_index = 0;
-    }
     fn scroll_functions_up(&mut self) {
         let i = match self.functions_state.selected() {
             Some(i) => {
@@ -289,13 +162,13 @@ impl<'a> TuiHandler<'a> {
     fn copy_selected_line(&mut self) {
         if let Some(index) = self.results_state.selected() {
           if index < self.results.len() {
-              self.input = self.results[index].clone()
+              let copied_text = self.results[index].clone()
                 .split_once(") ")
                 .and_then(|(_, rest)| rest.split_once(" = "))
                 .map(|(expr, _)| expr)
                 .unwrap_or("").to_string();
 
-              self.character_index = self.input.len();
+              self.input_handler.set_input(copied_text);
           }
       }
     }
@@ -317,20 +190,20 @@ impl<'a> TuiHandler<'a> {
     }
 
     fn submit_message(&mut self) {
-        if self.input.is_empty() {
-            self.input.clear();
-            self.reset_cursor();
+        let input = self.input_handler.input().to_string();
+
+        if input.is_empty() {
+            self.input_handler.clear();
             return;
         }
-        if self.input == "clear" {
+        if input == "clear" {
             self.results.clear();
-            self.input.clear();
-            self.reset_cursor();
+            self.input_handler.clear();
             return;
         }
 
         // :w <filename> or :export <filename>
-        if let Some(path) = self.input.strip_prefix(":w").or_else(|| self.input.strip_prefix(":export")) {
+        if let Some(path) = input.strip_prefix(":w").or_else(|| input.strip_prefix(":export")) {
             let path = path.trim().to_string();
             if path.is_empty() {
                 self.results.push("Usage: :w <filename>  —  specify a file to export history to".to_string());
@@ -340,24 +213,22 @@ impl<'a> TuiHandler<'a> {
                     Err(e) => self.results.push(format!("Export error: {}", e)),
                 }
             }
-            self.input.clear();
-            self.reset_cursor();
+            self.input_handler.clear();
             return;
         }
 
         // :r <filename> or :import <filename>
-        if let Some(path) = self.input.strip_prefix(":r").or_else(|| self.input.strip_prefix(":import")) {
+        if let Some(path) = input.strip_prefix(":r").or_else(|| input.strip_prefix(":import")) {
             let path = path.trim().to_string();
             if path.is_empty() {
                 self.results.push("Usage: :r <filename>  —  specify a file to import history from".to_string());
-                self.input.clear();
-                self.reset_cursor();
+                self.input_handler.clear();
                 return;
             }
             match import_history(&path) {
                 Ok(entries) => {
                     for entry in entries {
-                        match evaluate_input(&mut self.eval_ctx, &entry.expression) {
+                        match evaluate_input(&mut self.eval_ctx, &entry.expression, true) {
                             Ok(result) => {
                                 self.results.push(format!("{}) {} = {}", self.eval_ctx.counter, entry.expression.trim(), result));
                                 self.eval_ctx.history_entries.push((entry.expression.clone(), result));
@@ -371,19 +242,18 @@ impl<'a> TuiHandler<'a> {
                 }
                 Err(e) => self.results.push(format!("Import error: {}", e)),
             }
-            self.input.clear();
-            self.reset_cursor();
+            self.input_handler.clear();
             return;
         }
 
         self.add_to_history();
-        match evaluate_input(&mut self.eval_ctx, &self.input.to_string()) {
+        match evaluate_input(&mut self.eval_ctx, &input, true) {
 
             Ok(result) => {
-                if self.input.starts_with("let ") {
-                    let rest = self.input.strip_prefix("let ").unwrap();
+                if input.starts_with("let ") {
+                    let rest = input.strip_prefix("let ").unwrap();
                     let lhs = rest.split('=').next().unwrap_or("").trim();
-                    if self.input.contains("[") && self.input.ends_with("]") {
+                    if input.contains("[") && input.ends_with("]") {
                         let mut current_counter = self.eval_ctx.counter - self.eval_ctx.recently_assigned.iter().len();
                         for (def_name, def_value) in self.eval_ctx.recently_assigned.iter() {
                             current_counter += 1;
@@ -404,7 +274,7 @@ impl<'a> TuiHandler<'a> {
                     }
                 }
                 else {
-                self.results.push(format!("{}) {} = {}", self.eval_ctx.counter, self.input.trim(), self.eval_ctx.format_result(result)));
+                self.results.push(format!("{}) {} = {}", self.eval_ctx.counter, input.trim(), self.eval_ctx.format_result(result)));
                 }
 
             }
@@ -424,8 +294,7 @@ impl<'a> TuiHandler<'a> {
             self.variables_state.select(Some(var_count.saturating_sub(1)));
         }
 
-        self.input.clear();
-        self.reset_cursor();
+        self.input_handler.clear();
 
     }
 
@@ -435,7 +304,7 @@ impl<'a> TuiHandler<'a> {
         match import_history(path) {
             Ok(entries) => {
                 for entry in entries {
-                    match evaluate_input(&mut self.eval_ctx, &entry.expression) {
+                    match evaluate_input(&mut self.eval_ctx, &entry.expression, false) {
                         Ok(result) => {
                             self.results.push(format!("{}) {} = {}", self.eval_ctx.counter, entry.expression.trim(), result));
                             self.eval_ctx.history_entries.push((entry.expression, result));
@@ -478,7 +347,7 @@ impl<'a> TuiHandler<'a> {
                         }
                         KeyCode::Char('a') => {
                             self.tui_selection_map.reset_selection();
-                            self.move_cursor_right();
+                            self.input_handler.move_cursor_right();
                             self.input_mode = InputMode::Insert;
                             self.last_key = None;
                         }
@@ -486,9 +355,8 @@ impl<'a> TuiHandler<'a> {
                             return Ok(());
                         },
                         KeyCode::Char(':') => {
-                            self.input.clear();
-                            self.reset_cursor();
-                            self.enter_char(':');
+                            self.input_handler.clear();
+                            self.input_handler.enter_char(':');
                             self.input_mode = InputMode::Insert;
                             self.last_key = None;
                         }
@@ -509,25 +377,25 @@ impl<'a> TuiHandler<'a> {
 
                         KeyCode::Char('h') | KeyCode::Left => {
                             if self.tui_selection_map.selected("INPUT_WIN") {
-                                self.move_cursor_left();
+                                self.input_handler.move_cursor_left();
                                 self.last_key = None;
                             }
                         }
                         KeyCode::Char('l') | KeyCode::Right => {
                             if self.tui_selection_map.selected("INPUT_WIN") {
-                                self.move_cursor_right();
+                                self.input_handler.move_cursor_right();
                                 self.last_key = None;
                             }
                         }
                         KeyCode::Char('e') => {
                             if self.tui_selection_map.selected("INPUT_WIN") {
-                                self.move_to_end_of_word();
+                                self.input_handler.move_to_end_of_word();
                                 self.last_key = None;
                             }
                         }
                         KeyCode::Char('b') => {
                             if self.tui_selection_map.selected("INPUT_WIN") {
-                                self.move_to_beginning_of_word();
+                                self.input_handler.move_to_beginning_of_word();
                                 self.last_key = None;
                             }
                         }
@@ -572,9 +440,8 @@ impl<'a> TuiHandler<'a> {
                         KeyCode::Esc => {
                             self.tui_selection_map.reset_selection();
                             if self.tui_selection_map.selected("INPUT_WIN") {
-                                self.input.clear();
+                                self.input_handler.clear();
                             }
-                            self.reset_cursor();
                             self.last_key = None;
                         },
                         KeyCode::Char('g') => {
@@ -608,8 +475,7 @@ impl<'a> TuiHandler<'a> {
                         KeyCode::Char('d') => {
                             if self.last_key == Some('d') {
                                 if self.tui_selection_map.selected("INPUT_WIN") {
-                                self.input.clear();
-                                self.reset_cursor();
+                                self.input_handler.clear();
                                 self.last_key = None;
                                 }
                             } else {
@@ -626,7 +492,7 @@ impl<'a> TuiHandler<'a> {
                         }
                         KeyCode::Char('x') => {
                             if self.tui_selection_map.selected("INPUT_WIN") {
-                            self.delete_char_indexed();
+                            self.input_handler.delete_char_indexed();
                             self.last_key = None;
                             }
                         }
@@ -657,10 +523,10 @@ impl<'a> TuiHandler<'a> {
                             self.tui_selection_map.move_right();
                         }
                         KeyCode::Enter => self.submit_message(),
-                        KeyCode::Char(to_insert) => self.enter_char(to_insert),
-                        KeyCode::Backspace => self.delete_char(),
-                        KeyCode::Left => self.move_cursor_left(),
-                        KeyCode::Right => self.move_cursor_right(),
+                        KeyCode::Char(to_insert) => self.input_handler.enter_char(to_insert),
+                        KeyCode::Backspace => self.input_handler.delete_char(),
+                        KeyCode::Left => self.input_handler.move_cursor_left(),
+                        KeyCode::Right => self.input_handler.move_cursor_right(),
                         KeyCode::Up => {
                             self.get_previous_history();
                         }
@@ -772,7 +638,7 @@ impl<'a> TuiHandler<'a> {
 
 
         // Init Input Box
-        let input = Paragraph::new(self.input.as_str())
+        let input = Paragraph::new(self.input_handler.input())
             .style(match self.input_mode {
                 InputMode::Normal => Style::default().fg(self.tui_selection_map.selected_color("INPUT_WIN")),
                 InputMode::Insert => Style::default().fg(Color::Green),
@@ -784,7 +650,7 @@ impl<'a> TuiHandler<'a> {
 
         // Show cursor in both modes
         frame.set_cursor_position(Position::new(
-            input_area.x + self.character_index as u16 + 1,
+            input_area.x + self.input_handler.cursor_index() as u16 + 1,
             input_area.y + 1,
         ));
 

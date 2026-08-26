@@ -23,12 +23,12 @@ impl<'a> EvalContext<'a> {
         let mut init_ctx = Context::new();
         let mut var_map = IndexMap::new();
         for (name, value) in CONSTANT_VAR {
-            init_ctx.var(name, value);
-            var_map.insert(name.to_string(), value);
+            init_ctx.var(*name, *value);
+            var_map.insert(name.to_string(), *value);
             }
         let mut func_map = IndexMap::new();
         for (name, function) in CONSTANT_FUNC {
-            func_map.insert(name.to_string(), function);
+            func_map.insert(name.to_string(), function.clone());
             }
 
           Self {
