@@ -98,7 +98,7 @@ pub fn assign_definition(eval_ctx: &mut EvalContext, def_name: &str, def_value: 
         if def_name.contains('(') && def_name.contains(')') {
         // Function definition: let f(x) = ...
         let func = parse_function_definition(eval_ctx, def_name, def_value)?;
-        let func_name = func.func_name.clone();
+        let func_name = func.func_name.to_string();
 
         // Remove and re-insert to move to end of map
         eval_ctx.defined_funcs.shift_remove(&func_name);

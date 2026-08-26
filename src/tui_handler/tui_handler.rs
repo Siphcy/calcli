@@ -7,43 +7,49 @@ use crate::eval_context::EvalContext;
 use ratatui::crossterm::event::{self, KeyCode, KeyEventKind};
 use ratatui::crossterm::cursor::SetCursorStyle;
 use ratatui::crossterm::ExecutableCommand;
+use ratatui::crossterm::event::KeyModifiers;
 use ratatui::layout::{Constraint, Layout, Position};
 use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Table, Row, Block, List, ListItem, Paragraph, ListState, TableState};
 use ratatui::{DefaultTerminal, Frame};
+use super::selection::TuiSelectionMap;
 
-//TODO: add window selection
 
-pub struct InputHandler<'a> {
+pub struct TuiHandler<'a> {
     input: String,
     character_index: usize,
     input_mode: InputMode,
-    messages: Vec<String>,
+    results: Vec<String>,
     eval_ctx: EvalContext<'a>,
     history: History,
-    messages_state: ListState,
+    results_state: ListState,
     variables_state: TableState,
+    functions_state: TableState,
     last_key: Option<char>,
+    tui_selection_map: TuiSelectionMap,
+
 }
 
 pub enum InputMode {
     Normal,
-    Editing,
+    Insert,
 }
 
-impl<'a> InputHandler<'a> {
+impl<'a> TuiHandler<'a> {
     pub fn new() -> Self {
         Self {
             input: String::new(),
             input_mode: InputMode::Normal,
-            messages: Vec::new(),
+            results: Vec::new(),
             eval_ctx: EvalContext::new(),
             history: History::new(),
             character_index: 0,
-            messages_state: ListState::default(),
+            results_state: ListState::default(),
             variables_state: TableState::default(),
+            functions_state: TableState::default(),
             last_key: None,
+            tui_selection_map: TuiSelectionMap::new(),
         }
     }
 
@@ -196,30 +202,8 @@ impl<'a> InputHandler<'a> {
     fn reset_cursor(&mut self) {
         self.character_index = 0;
     }
-
-    fn scroll_messages_down(&mut self) {
-        let i = match self.messages_state.selected() {
-            Some(i) => {
-                if i < self.messages.len().saturating_sub(1) {
-                    i + 1
-                } else {
-                    i
-                }
-            }
-            None => 0,
-        };
-        self.messages_state.select(Some(i));
-    }
-    fn scroll_messages_top(&mut self) {
-        self.messages_state.select(Some(0))
-
-    }
-    fn scroll_messages_bottom(&mut self) {
-        self.messages_state.select(Some(self.messages.len()));
-    }
-
-    fn scroll_messages_up(&mut self) {
-        let i = match self.messages_state.selected() {
+    fn scroll_functions_up(&mut self) {
+        let i = match self.functions_state.selected() {
             Some(i) => {
                 if i > 0 {
                     i - 1
@@ -229,7 +213,59 @@ impl<'a> InputHandler<'a> {
             }
             None => 0,
         };
-        self.messages_state.select(Some(i));
+        self.functions_state.select(Some(i));
+    }
+    fn scroll_functions_down(&mut self) {
+        let func_count = self.eval_ctx.defined_funcs.iter().count();
+
+
+        let i = match self.functions_state.selected() {
+            Some(i) => {
+                if i < func_count {
+                    i + 1
+                } else {
+                    i
+                }
+            }
+            None => 0,
+        };
+
+        self.functions_state.select(Some(i));
+    }
+
+    fn scroll_results_down(&mut self) {
+        let i = match self.results_state.selected() {
+            Some(i) => {
+                if i < self.results.len().saturating_sub(1) {
+                    i + 1
+                } else {
+                    i
+                }
+            }
+            None => 0,
+        };
+        self.results_state.select(Some(i));
+    }
+    fn scroll_results_top(&mut self) {
+        self.results_state.select(Some(0))
+
+    }
+    fn scroll_results_bottom(&mut self) {
+        self.results_state.select(Some(self.results.len()));
+    }
+
+    fn scroll_results_up(&mut self) {
+        let i = match self.results_state.selected() {
+            Some(i) => {
+                if i > 0 {
+                    i - 1
+                } else {
+                    0
+                }
+            }
+            None => 0,
+        };
+        self.results_state.select(Some(i));
     }
 
     fn scroll_variables_down(&mut self) {
@@ -251,9 +287,9 @@ impl<'a> InputHandler<'a> {
     }
 
     fn copy_selected_line(&mut self) {
-        if let Some(index) = self.messages_state.selected() {
-          if index < self.messages.len() {
-              self.input = self.messages[index].clone()
+        if let Some(index) = self.results_state.selected() {
+          if index < self.results.len() {
+              self.input = self.results[index].clone()
                 .split_once(") ")
                 .and_then(|(_, rest)| rest.split_once(" = "))
                 .map(|(expr, _)| expr)
@@ -287,7 +323,7 @@ impl<'a> InputHandler<'a> {
             return;
         }
         if self.input == "clear" {
-            self.messages.clear();
+            self.results.clear();
             self.input.clear();
             self.reset_cursor();
             return;
@@ -297,11 +333,11 @@ impl<'a> InputHandler<'a> {
         if let Some(path) = self.input.strip_prefix(":w").or_else(|| self.input.strip_prefix(":export")) {
             let path = path.trim().to_string();
             if path.is_empty() {
-                self.messages.push("Usage: :w <filename>  —  specify a file to export history to".to_string());
+                self.results.push("Usage: :w <filename>  —  specify a file to export history to".to_string());
             } else {
                 match export_history(&path, &self.eval_ctx.history_entries) {
-                    Ok(()) => self.messages.push(format!("Exported history to {}", path)),
-                    Err(e) => self.messages.push(format!("Export error: {}", e)),
+                    Ok(()) => self.results.push(format!("Exported history to {}", path)),
+                    Err(e) => self.results.push(format!("Export error: {}", e)),
                 }
             }
             self.input.clear();
@@ -313,7 +349,7 @@ impl<'a> InputHandler<'a> {
         if let Some(path) = self.input.strip_prefix(":r").or_else(|| self.input.strip_prefix(":import")) {
             let path = path.trim().to_string();
             if path.is_empty() {
-                self.messages.push("Usage: :r <filename>  —  specify a file to import history from".to_string());
+                self.results.push("Usage: :r <filename>  —  specify a file to import history from".to_string());
                 self.input.clear();
                 self.reset_cursor();
                 return;
@@ -323,17 +359,17 @@ impl<'a> InputHandler<'a> {
                     for entry in entries {
                         match evaluate_input(&mut self.eval_ctx, &entry.expression) {
                             Ok(result) => {
-                                self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, entry.expression.trim(), result));
+                                self.results.push(format!("{}) {} = {}", self.eval_ctx.counter, entry.expression.trim(), result));
                                 self.eval_ctx.history_entries.push((entry.expression.clone(), result));
                             }
                             Err(e) => {
-                                self.messages.push(format!("Import error on '{}': {}", entry.expression, e));
+                                self.results.push(format!("Import error on '{}': {}", entry.expression, e));
                             }
                         }
                     }
-                    self.messages.push(format!("Imported history from {}", path));
+                    self.results.push(format!("Imported history from {}", path));
                 }
-                Err(e) => self.messages.push(format!("Import error: {}", e)),
+                Err(e) => self.results.push(format!("Import error: {}", e)),
             }
             self.input.clear();
             self.reset_cursor();
@@ -353,32 +389,32 @@ impl<'a> InputHandler<'a> {
                             current_counter += 1;
                             let msg = format!("{}) {} = {}", current_counter, def_name, def_value);
 
-                                self.messages.push(format!("{}", msg,));
+                                self.results.push(format!("{}", msg,));
                         }
 
                     }
                     else if lhs.contains("(") && lhs.contains(")") {
                         if let Some((func_name, func)) = self.eval_ctx.defined_funcs.last() {
-                            self.messages.push(format!("{}) {}({}) = {}", self.eval_ctx.counter, func_name, func.var_name, func.expr));
+                            self.results.push(format!("{}) {}({}) = {}", self.eval_ctx.counter, func_name, func.var_name, func.expr));
                         }
                     } else {
                         if let Some((var, value)) = self.eval_ctx.defined_vars.last() {
-                            self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, var, value));
+                            self.results.push(format!("{}) {} = {}", self.eval_ctx.counter, var, self.eval_ctx.format_result(*value)));
                         }
                     }
                 }
                 else {
-                self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, self.input.trim(), result));
+                self.results.push(format!("{}) {} = {}", self.eval_ctx.counter, self.input.trim(), self.eval_ctx.format_result(result)));
                 }
 
             }
             Err(e) => {
-                self.messages.push(format!("Error: {}", e));
+                self.results.push(format!("Error: {}", e));
             }
         }
 
-        if !self.messages.is_empty() {
-            self.messages_state.select(Some(self.messages.len().saturating_sub(1)));
+        if !self.results.is_empty() {
+            self.results_state.select(Some(self.results.len().saturating_sub(1)));
         }
 
         let var_count = self.eval_ctx.defined_vars.iter()
@@ -401,22 +437,22 @@ impl<'a> InputHandler<'a> {
                 for entry in entries {
                     match evaluate_input(&mut self.eval_ctx, &entry.expression) {
                         Ok(result) => {
-                            self.messages.push(format!("{}) {} = {}", self.eval_ctx.counter, entry.expression.trim(), result));
+                            self.results.push(format!("{}) {} = {}", self.eval_ctx.counter, entry.expression.trim(), result));
                             self.eval_ctx.history_entries.push((entry.expression, result));
                             self.eval_ctx.counter += 1;
                         }
                         Err(e) => {
-                            self.messages.push(format!("Import error on '{}': {}", entry.expression, e));
+                            self.results.push(format!("Import error on '{}': {}", entry.expression, e));
                         }
                     }
                 }
-                self.messages.push(format!("Imported history from {}", path));
-                if !self.messages.is_empty() {
-                    self.messages_state.select(Some(self.messages.len().saturating_sub(1)));
+                self.results.push(format!("Imported history from {}", path));
+                if !self.results.is_empty() {
+                    self.results_state.select(Some(self.results.len().saturating_sub(1)));
                 }
             }
             Err(e) => {
-                self.messages.push(format!("Import error: {}", e));
+                self.results.push(format!("Import error: {}", e));
             }
         }
     }
@@ -428,7 +464,7 @@ impl<'a> InputHandler<'a> {
             // Set cursor style based on mode
             let cursor_style = match self.input_mode {
                 InputMode::Normal => SetCursorStyle::SteadyBlock,
-                InputMode::Editing => SetCursorStyle::SteadyBar,
+                InputMode::Insert => SetCursorStyle::SteadyBar,
             };
             std::io::stdout().execute(cursor_style)?;
 
@@ -436,12 +472,14 @@ impl<'a> InputHandler<'a> {
                 match self.input_mode {
                     InputMode::Normal => match key.code {
                         KeyCode::Char('i') => {
-                            self.input_mode = InputMode::Editing;
+                            self.tui_selection_map.reset_selection();
+                            self.input_mode = InputMode::Insert;
                             self.last_key = None;
                         }
                         KeyCode::Char('a') => {
+                            self.tui_selection_map.reset_selection();
                             self.move_cursor_right();
-                            self.input_mode = InputMode::Editing;
+                            self.input_mode = InputMode::Insert;
                             self.last_key = None;
                         }
                         KeyCode::Char('q') => {
@@ -451,41 +489,97 @@ impl<'a> InputHandler<'a> {
                             self.input.clear();
                             self.reset_cursor();
                             self.enter_char(':');
-                            self.input_mode = InputMode::Editing;
+                            self.input_mode = InputMode::Insert;
                             self.last_key = None;
                         }
+
+                        KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.tui_selection_map.move_up();
+                        }
+                        KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.tui_selection_map.move_down();
+                        }
+                        KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.tui_selection_map.move_left();
+                        }
+                        KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.tui_selection_map.move_right();
+                        }
+
+
                         KeyCode::Char('h') | KeyCode::Left => {
-                            self.move_cursor_left();
-                            self.last_key = None;
+                            if self.tui_selection_map.selected("INPUT_WIN") {
+                                self.move_cursor_left();
+                                self.last_key = None;
+                            }
                         }
                         KeyCode::Char('l') | KeyCode::Right => {
-                            self.move_cursor_right();
-                            self.last_key = None;
+                            if self.tui_selection_map.selected("INPUT_WIN") {
+                                self.move_cursor_right();
+                                self.last_key = None;
+                            }
                         }
                         KeyCode::Char('e') => {
-                            self.move_to_end_of_word();
-                            self.last_key = None;
+                            if self.tui_selection_map.selected("INPUT_WIN") {
+                                self.move_to_end_of_word();
+                                self.last_key = None;
+                            }
                         }
                         KeyCode::Char('b') => {
-                            self.move_to_beginning_of_word();
-                            self.last_key = None;
+                            if self.tui_selection_map.selected("INPUT_WIN") {
+                                self.move_to_beginning_of_word();
+                                self.last_key = None;
+                            }
                         }
                         KeyCode::Char('k') | KeyCode::Up => {
+
+                            if self.tui_selection_map.selected("INPUT_WIN") {
                             self.get_previous_history();
                             self.last_key = None;
+                            }
+                            else if self.tui_selection_map.selected("RESULT_WIN") {
+                            self.scroll_results_up();
+                            self.last_key = None;
+                            }
+                            else if self.tui_selection_map.selected("VARIABLE_WIN") {
+                            self.scroll_variables_up();
+                            self.last_key = None;
+                            }
+                            else if self.tui_selection_map.selected("FUNCTION_WIN") {
+                            self.scroll_functions_up();
+                            self.last_key = None;
+                            }
                         }
                         KeyCode::Char('j') | KeyCode::Down => {
+
+                            if self.tui_selection_map.selected("INPUT_WIN") {
                             self.get_next_history();
                             self.last_key = None;
+                            }
+                            else if self.tui_selection_map.selected("RESULT_WIN") {
+                            self.scroll_results_down();
+                            self.last_key = None;
+                            }
+                            else if self.tui_selection_map.selected("VARIABLE_WIN") {
+                            self.scroll_variables_down();
+                            self.last_key = None;
+                            }
+                            else if self.tui_selection_map.selected("FUNCTION_WIN") {
+                            self.scroll_functions_down();
+                            self.last_key = None;
+                            }
                         }
                         KeyCode::Esc => {
-                            self.input.clear();
+                            self.tui_selection_map.reset_selection();
+                            if self.tui_selection_map.selected("INPUT_WIN") {
+                                self.input.clear();
+                            }
                             self.reset_cursor();
                             self.last_key = None;
                         },
                         KeyCode::Char('g') => {
                             if self.last_key == Some('g') {
-                                self.scroll_messages_top();
+                                self.scroll_results_top();
                                 self.last_key = None;
                             } else {
                                 self.last_key = Some('g');
@@ -493,48 +587,72 @@ impl<'a> InputHandler<'a> {
                         }
                         KeyCode::Char('G') => {
                             if self.last_key == Some('G') {
-                                self.scroll_messages_bottom();
+                                if self.tui_selection_map.selected("RESULT_WIN") {
+                                self.scroll_results_bottom();
                                 self.last_key = None;
+                                }
                             } else {
                                 self.last_key = Some('G');
                             }
                         }
-                        // Scroll messages/results
-                        KeyCode::Char('J') => {
-                            self.scroll_messages_down();
-                            self.last_key = None;
-                        }
-                        KeyCode::Char('K') => {
-                            self.scroll_messages_up();
-                            self.last_key = None;
-                        }
-                        // Scroll variables
-                        KeyCode::Char('N') => {
-                            self.scroll_variables_down();
-                            self.last_key = None;
-                        }
-                        KeyCode::Char('P') => {
-                            self.scroll_variables_up();
-                            self.last_key = None;
-                        }
+
                         KeyCode::Enter => {
+                            if self.tui_selection_map.selected("INPUT_WIN") {
                             self.submit_message();
                             self.last_key = None;
+                            }
+                        }
+                        KeyCode::Char('d') => {
+                            if self.last_key == Some('d') {
+                                if self.tui_selection_map.selected("INPUT_WIN") {
+                                self.input.clear();
+                                self.reset_cursor();
+                                self.last_key = None;
+                                }
+                            } else {
+                                self.last_key = Some('d');
+                            }
                         }
                         KeyCode::Char('y') => {
+
+                            if self.tui_selection_map.selected("RESULT_WIN") {
+                            self.tui_selection_map.reset_selection();
                             self.copy_selected_line();
                             self.last_key = None;
+                            }
                         }
                         KeyCode::Char('x') => {
+                            if self.tui_selection_map.selected("INPUT_WIN") {
                             self.delete_char_indexed();
                             self.last_key = None;
+                            }
                         }
+
 
                         _ => {
                             self.last_key = None;
                         }
                     },
-                    InputMode::Editing if key.kind == KeyEventKind::Press => match key.code {
+                    InputMode::Insert if key.kind == KeyEventKind::Press => match key.code {
+                        KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            self.input_mode = InputMode::Normal;
+                            self.tui_selection_map.move_up();
+                        }
+                        KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+
+                            self.input_mode = InputMode::Normal;
+                            self.tui_selection_map.move_down();
+                        }
+                        KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+
+                            self.input_mode = InputMode::Normal;
+                            self.tui_selection_map.move_left();
+                        }
+                        KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+
+                            self.input_mode = InputMode::Normal;
+                            self.tui_selection_map.move_right();
+                        }
                         KeyCode::Enter => self.submit_message(),
                         KeyCode::Char(to_insert) => self.enter_char(to_insert),
                         KeyCode::Backspace => self.delete_char(),
@@ -549,7 +667,7 @@ impl<'a> InputHandler<'a> {
                         KeyCode::Esc => self.input_mode = InputMode::Normal,
                         _ => {}
                     },
-                    InputMode::Editing => {}
+                    InputMode::Insert => {}
                 }
             }
         }
@@ -562,15 +680,28 @@ impl<'a> InputHandler<'a> {
             Constraint::Length(3),
             Constraint::Length(1),
         ]);
-    let horizontal = Layout::horizontal([Constraint::Percentage(80), Constraint::Percentage(20)]);
-    let definition_list_vertical = Layout::vertical([
+        let horizontal = Layout::horizontal([
+            Constraint::Percentage(80),
+            Constraint::Percentage(20)
+        ]);
+        let definition_list_vertical = Layout::vertical([
             Constraint::Percentage(50),
             Constraint::Percentage(50)
         ]);
 
-        let [help_area, messages_area, input_area, status_area] = main_vertical.areas(frame.area());
-        let [output, def_area] = horizontal.areas(messages_area);
-        let [var_list, func_list] = definition_list_vertical.areas(def_area);
+        let [
+            help_area,
+            result_area,
+            input_area,
+            status_area
+        ] = main_vertical.areas(frame.area());
+
+        let [output_box,
+        def_area
+        ] = horizontal.areas(result_area);
+        let [func_list,
+            var_list
+        ] = definition_list_vertical.areas(def_area);
 
         let (msg, style) = match self.input_mode {
             InputMode::Normal => (
@@ -603,7 +734,7 @@ impl<'a> InputHandler<'a> {
                 ],
                 Style::default().add_modifier(Modifier::RAPID_BLINK),
             ),
-            InputMode::Editing => (
+            InputMode::Insert => (
                 vec![
                     "Press ".into(),
                     "Esc".bold(),
@@ -619,26 +750,38 @@ impl<'a> InputHandler<'a> {
             ),
         };
 
+
+
+
+        // Init Status results
         let status_msg = match self.input_mode {
-            InputMode::Normal => "NORMAL",
-            InputMode::Editing =>  "INSERT"
+            InputMode::Normal => format!("NORMAL {:?} ------ {}", self.tui_selection_map.get_pos(), self.tui_selection_map.update_selection()),
+
+            InputMode::Insert => format!("INSERT {:?} ------ {}", self.tui_selection_map.get_pos(), self.tui_selection_map.update_selection()),
+
         };
+        frame.render_widget(Line::from(status_msg), status_area);
 
-        let text = Text::from(Line::from(msg)).patch_style(style);
 
-        let help_message = Paragraph::new(text);
+
+        // Init Help message
+        let formatted_help_text = Text::from(Line::from(msg)).patch_style(style);
+        let help_message = Paragraph::new(formatted_help_text);
         frame.render_widget(help_message, help_area);
 
 
-        frame.render_widget(Block::bordered().title(status_msg), status_area);
 
+
+        // Init Input Box
         let input = Paragraph::new(self.input.as_str())
             .style(match self.input_mode {
-                InputMode::Normal => Style::default(),
-                InputMode::Editing => Style::default().fg(Color::Green),
+                InputMode::Normal => Style::default().fg(self.tui_selection_map.selected_color("INPUT_WIN")),
+                InputMode::Insert => Style::default().fg(Color::Green),
             })
             .block(Block::bordered().title("Expression"));
         frame.render_widget(input, input_area);
+
+
 
         // Show cursor in both modes
         frame.set_cursor_position(Position::new(
@@ -646,8 +789,12 @@ impl<'a> InputHandler<'a> {
             input_area.y + 1,
         ));
 
-        let messages: Vec<ListItem> = self
-            .messages
+
+
+
+        // Init Result Box
+        let results: Vec<ListItem> = self
+            .results
             .iter()
             .map(|m| {
                 let content = Line::from(Span::raw(m));
@@ -655,39 +802,47 @@ impl<'a> InputHandler<'a> {
             })
             .collect();
 
-        let messages = List::new(messages)
-            .block(Block::bordered().title("Results"))
+        let results = List::new(results)
+            .block(Block::bordered().title("Results")).fg(self.tui_selection_map.selected_color("RESULT_WIN"))
             .highlight_style(Style::default().bg(Color::DarkGray))
             .highlight_symbol(">> ");
 
+
+
+        // Init Var Table
         let mut var_rows: Vec<Row> = Vec::new();
         for (name, value) in self.eval_ctx.defined_vars.iter() {
             if !name.starts_with("lin") {
-                var_rows.push(Row::new(vec![name.clone(), value.to_string()]));
+                var_rows.push(Row::new(vec![name.clone(), self.eval_ctx.format_result(*value)]));
             }
         }
-        let mut func_rows: Vec<Row> = Vec::new();
-        for (name, func) in self.eval_ctx.defined_funcs.iter() {
-                func_rows.push(Row::new(vec![format!("{}({})", name, func.var_name ), func.expr.clone()]));
-        }
-
         let var_table = Table::new(
             var_rows,
             [Constraint::Percentage(20), Constraint::Percentage(80)]
         )
-        .block(Block::bordered().title("Variables"))
+        .block(Block::bordered().title("Variables")).fg(self.tui_selection_map.selected_color("VARIABLE_WIN"))
         .highlight_style(Style::default().bg(Color::DarkGray))
         .highlight_symbol(">> ");
+
+
+        // Init Function Table
+        let mut func_rows: Vec<Row> = Vec::new();
+        for (name, func) in self.eval_ctx.defined_funcs.iter() {
+                func_rows.push(Row::new(vec![format!("{}({})", name, func.var_name ), func.expr.to_string()]));
+        }
         let func_table = Table::new(
             func_rows,
             [Constraint::Percentage(20), Constraint::Percentage(80)]
         )
-        .block(Block::bordered().title("Functions"))
+        .block(Block::bordered().title("Functions")).fg(self.tui_selection_map.selected_color("FUNCTION_WIN"))
         .highlight_style(Style::default().bg(Color::DarkGray))
         .highlight_symbol(">> ");
 
-        frame.render_stateful_widget(func_table, var_list, &mut self.variables_state);
-        frame.render_stateful_widget(var_table, func_list, &mut self.variables_state);
-        frame.render_stateful_widget(messages, output, &mut self.messages_state);
+
+
+        // RENDER WIDGETS
+        frame.render_stateful_widget(var_table, var_list, &mut self.variables_state);
+        frame.render_stateful_widget(func_table, func_list, &mut self.functions_state);
+        frame.render_stateful_widget(results, output_box, &mut self.results_state);
     }
 }
