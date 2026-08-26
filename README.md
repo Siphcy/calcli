@@ -31,7 +31,7 @@ A lightweight TUI scientific calculator with Vi-style keybindings, built in Rust
 ## Features
 
 - **Mathematical Functions** - Trig (sin, cos, tan), logarithms (ln, log), hyperbolic functions, and more
-- **Variable/Function System** - Define with `let x = 5`, `let f(x) = 5x`, batch assignments `let [x, y] = [1, 2]`, supports `x`, `x1`, `y10` naming, automatic line references (`lin1`, `lin2`)
+- **Variable/Function System** - Define with `let x = 5`, `let f(x) = 5x`, batch assignments `let [x, y] = [1, 2]`, supports `x`, `x_1`, `y_10` naming, automatic line references (`lin_1`, `lin_2`)
 - **Definition Management** - Remove definitions with `remove x`, `delete f(x)`, or `rm y`
 - **Implicit Multiplication** - Write `2x`, `3(5+2)`, `2sin(1)` naturally, decimal shortcuts (`.5` → `0.5`)
 - **Vi-Style Keybindings** - Normal/Insert modes, `hjkl` navigation, `gg`/`GG`, word movements (`e`, `b`)
@@ -104,8 +104,8 @@ rm y            # Remove variable y (shorthand)
 #### Line References
 
 ```
-5 + 3           # Result stored as lin1
-lin1 * 2        # Use previous result
+5 + 3           # Result stored as lin_1
+lin_1 * 2        # Use previous result
 ```
 
 #### Decimal Shortcuts
@@ -273,7 +273,8 @@ cargo build --release
 - **Variable Assignment**: `let <name> = <expression>` (e.g., `let n = 5`)
 - **Batch Assignment**: `let [x, y, f(z)] = [1, 2, z^2]` - assign multiple definitions at once
 - **Remove Definition**: `remove <name>`, `delete <name>`, or `rm <name>`
-- **Line References**: `lin1`, `lin2`, `lin10`, etc.
+- **Line References**: `lin_1`, `lin_2`, `lin_10`, etc.
+- **Configurable Separator**: The separator character between letters and numbers in variable names (default: `_`) can be changed in `src/lib.rs` and `src/main.rs` by modifying the `VARIABLE_SEPARATOR` constant
 - **Implicit Multiplication**: `2x`, `3(5+2)`, `2sin(1)`
 - **Decimal Shortcuts**: `.5` → `0.5`, `2.` → `2.0`
 - **Bracket Notation**: `[variable]` for explicit variable reference

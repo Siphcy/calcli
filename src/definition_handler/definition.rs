@@ -1,6 +1,5 @@
 use crate::eval_context::EvalContext;
 use crate::error::{EvalError, DefError};
-use fancy_regex::Regex;
 use super::parse_function::parse_function_definition;
 use super::parse_variable::parse_variable_definition;
 
@@ -50,12 +49,7 @@ pub fn assign_batch(eval_ctx: &mut EvalContext, input: &String) -> Result<f64, E
     }
 
     // Matches batch assignments: let [f(x), y, g(z)] = [x^2, 5, z*2]
-    // Simplified regex - validation happens after parsing
-    let batch_regex = Regex::new(r"^let\s+\[\s*([^\]]+)\s*\]\s*=\s*\[\s*(.+)\s*\]$").unwrap();
-
-    if let Ok(Some(caps)) = batch_regex.captures(&input) {
-        let def_str = caps.get(1).unwrap().as_str();
-        let values_str = caps.get(2).unwrap().as_str();
+    if let Some((def_str, values_str)) = parse_batch_assignment(&input) {
 
         // Check for empty definitions or values
         if def_str.trim().is_empty() {
@@ -128,6 +122,48 @@ fn tidy_definition_input(input: &String) -> Result<(&str, &str), EvalError> {
         ).into());
     }
     Ok((parts[0].trim(), parts[1].trim()))
+}
+
+/// Parses batch assignment syntax like `let [x, y] = [1, 2]`
+/// Returns Some((definitions, values)) if it matches the pattern
+fn parse_batch_assignment(input: &str) -> Option<(String, String)> {
+    let input = input.trim();
+
+    // Must start with "let "
+    let rest = input.strip_prefix("let")?;
+    let rest = rest.trim_start();
+
+    // Must start with '['
+    if !rest.starts_with('[') {
+        return None;
+    }
+
+    // Find the first closing bracket
+    let first_close = rest.find(']')?;
+    let def_str = &rest[1..first_close]; // Extract content between [ and ]
+
+    // After the first ']', there should be '='
+    let after_first = rest[first_close + 1..].trim_start();
+    if !after_first.starts_with('=') {
+        return None;
+    }
+
+    // After '=', there should be another '['
+    let after_eq = after_first[1..].trim_start();
+    if !after_eq.starts_with('[') {
+        return None;
+    }
+
+    // Find the last ']'
+    let last_close = after_eq.rfind(']')?;
+    let values_str = &after_eq[1..last_close]; // Extract content between [ and ]
+
+    // Make sure there's nothing after the last ']' except whitespace
+    if !after_eq[last_close + 1..].trim().is_empty() {
+        return None;
+    }
+
+    Some((def_str.to_string(), values_str.to_string()))
 }
 
 

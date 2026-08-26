@@ -265,7 +265,7 @@ fn test_sci_convert_line_reference() {
     evaluate_input(&mut ctx, "123.456").unwrap();
 
     // Convert it
-    let result = evaluate_input(&mut ctx, "sci lin1");
+    let result = evaluate_input(&mut ctx, "sci lin_1");
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), "Parse error: 1.23456e+2");
 }
@@ -287,12 +287,12 @@ fn test_sci_convert_with_custom_precision() {
 fn test_line_reference_with_sci_notation() {
     let mut ctx = EvalContext::new();
 
-    // Large number stored in lin1
+    // Large number stored in lin_1
     let result1 = evaluate_input(&mut ctx, "10000000").unwrap();
     assert_eq!(result1, 10_000_000.0);
 
-    // Use lin1 in calculation
-    let result2 = evaluate_input(&mut ctx, "lin1 * 2").unwrap();
+    // Use lin_1 in calculation
+    let result2 = evaluate_input(&mut ctx, "lin_1 * 2").unwrap();
     assert_eq!(result2, 20_000_000.0);
     assert_eq!(ctx.format_result(result2), "2.00000e+7");
 }
